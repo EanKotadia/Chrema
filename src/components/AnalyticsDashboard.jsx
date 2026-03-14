@@ -14,13 +14,6 @@ function exportToExcel(data) {
   // Using the simplest approach: generate an HTML table workbook (opens natively in Excel)
   const now = new Date().toLocaleDateString("en-GB");
 
-  const escCell = v => {
-    if (v == null) return "";
-    const s = String(v);
-    return s.includes(",") || s.includes('"') || s.includes("\n")
-      ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-
   // Sheet 1: Article performance
   const artSheet = [
     ["Article Performance Report — Chréma Magazine", `Generated: ${now}`],
