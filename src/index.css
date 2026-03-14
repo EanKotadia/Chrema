@@ -1,0 +1,125 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Space Mono', monospace;
+    background-color: #000;
+    color: #fff;
+    line-height: 1.6;
+}
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem;
+}
+
+.article-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+}
+
+.article-card {
+    background: #111;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.article-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 8px 20px rgba(255,255,255,0.15);
+}
+
+/* Category */
+
+.article-category {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: #4C9E8A;
+    margin-bottom: 6px;
+}
+
+/* Title */
+
+.article-title {
+    font-size: 1.4rem;
+    margin-bottom: 8px;
+}
+
+/* Meta */
+
+.article-meta {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-bottom: 12px;
+}
+
+/* Excerpt */
+
+.article-excerpt {
+    font-size: 0.9rem;
+    opacity: 0.85;
+    margin-bottom: 15px;
+}
+
+/* Link */
+
+.read-more {
+    text-decoration: none;
+    font-weight: bold;
+    color: #4C9E8A;
+    transition: 0.2s;
+}
+
+.read-more:hover {
+    color: white;
+}
+
+.timeline {
+    position: relative;
+    margin-top: 40px;
+    border-left: 2px solid #fff;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 40px;
+    cursor: pointer;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -41px;
+    top: 5px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #333;
+    transition: 0.3s;
+}
+
+.timeline-marker.active {
+    background: #4C9E8A;
+    box-shadow: 0 0 10px #4C9E8A;
+}
+
+.timeline-year {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-bottom: 4px;
+}
+
+.timeline-text {
+    margin-top: 8px;
+    opacity: 0.85;
+    max-width: 700px;
+}

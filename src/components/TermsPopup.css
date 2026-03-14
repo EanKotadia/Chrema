@@ -1,0 +1,93 @@
+.terms-backdrop {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.92);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: termsIn .3s ease;
+}
+
+@keyframes termsIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.terms-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  width: 100%; max-width: 640px;
+  max-height: 90vh;
+  display: flex; flex-direction: column;
+  animation: termsModalIn .35s cubic-bezier(.16,1,.3,1);
+  box-shadow: 0 40px 80px rgba(0,0,0,0.8);
+}
+
+@keyframes termsModalIn {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Header */
+.terms-header {
+  padding: 40px 40px 28px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.terms-logo {
+  display: block;
+  font-family: var(--font-display); font-size: 14px; font-weight: 900;
+  letter-spacing: .14em; color: var(--accent); margin-bottom: 20px;
+}
+.terms-title {
+  font-family: var(--font-display); font-size: 32px; font-weight: 900;
+  letter-spacing: -.02em; color: var(--text); margin-bottom: 6px; line-height: 1.1;
+}
+.terms-subtitle {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+
+/* Body */
+.terms-body {
+  flex: 1; overflow-y: auto; padding: 32px 40px;
+  display: flex; flex-direction: column; gap: 24px;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.terms-body::-webkit-scrollbar { width: 4px; }
+.terms-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.terms-section { display: flex; flex-direction: column; gap: 10px; }
+.terms-section h3 {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--accent);
+}
+.terms-section p {
+  font-size: 13.5px; line-height: 1.7; color: var(--text-muted);
+}
+
+/* Footer */
+.terms-footer {
+  padding: 24px 40px 32px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.terms-footer-note {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em;
+  color: var(--text-dim); line-height: 1.5;
+}
+.terms-accept-btn {
+  width: 100%; padding: 16px;
+  background: var(--accent); color: var(--bg);
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  border-radius: var(--radius);
+  transition: opacity .2s, transform .2s;
+  cursor: pointer;
+}
+.terms-accept-btn:hover { opacity: .9; transform: translateY(-1px); }
+
+@media (max-width: 600px) {
+  .terms-header, .terms-body, .terms-footer { padding-left: 24px; padding-right: 24px; }
+  .terms-title { font-size: 26px; }
+}
