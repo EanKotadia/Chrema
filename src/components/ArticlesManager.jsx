@@ -4,12 +4,6 @@ import ArticleEditor from "./ArticleEditor";
 import { formatDate } from "../utils/dateUtils";
 import "./ArticlesManager.css";
 
-const CATEGORIES = [
-  "Technology","Science","Design","Research","Culture","Opinion",
-  "Literature","History","Business","Global Affairs","Politics",
-  "Philosophy","Environment","Health","Sports","Arts",
-];
-
 // ── Edit drawer (uses ArticleEditor) ─────────────────────
 function EditDrawer({ article, onClose, onSave, onDelete }) {
   const handleSave = async (formData) => {

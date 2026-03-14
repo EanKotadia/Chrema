@@ -8,7 +8,7 @@ import "./AnalyticsDashboard.css";
 
 // ── Excel export (pure JS, no library needed) ─────────────
 function exportToExcel(data) {
-  const { articles, views, submissions, events, eventSubs } = data;
+  const { articles, views, submissions, eventSubs } = data;
 
   // Build all sheets as CSV strings then package into a multi-sheet .xlsx
   // Using the simplest approach: generate an HTML table workbook (opens natively in Excel)
@@ -20,8 +20,6 @@ function exportToExcel(data) {
     return s.includes(",") || s.includes('"') || s.includes("\n")
       ? `"${s.replace(/"/g, '""')}"` : s;
   };
-
-  const toCSV = rows => rows.map(r => r.map(escCell).join(",")).join("\n");
 
   // Sheet 1: Article performance
   const artSheet = [
@@ -311,7 +309,7 @@ export default function AnalyticsDashboard() {
     <div className="ad-error"><span>⚠</span><p>Failed to load: {error}</p></div>
   );
 
-  const { articles, submissions, views, trash, events, eventSubs } = raw;
+  const { articles, submissions, views, eventSubs } = raw;
 
   // ── Computed metrics ──────────────────────────────────
   const now        = Date.now();
@@ -341,9 +339,6 @@ export default function AnalyticsDashboard() {
 
   // CTR: sessions that read at least one article / all sessions (within range)
   // Here we use views/unique as engagement rate (articles per visitor)
-  const engagementRate = uniqueSessions > 0
-    ? `${((totalViews / uniqueSessions)).toFixed(1)} pg/v` : "—";
-
   // Bounce-proxy: sessions with exactly 1 view
   const sessionViewMap = {};
   windowViews.forEach(v => { sessionViewMap[v.session_id] = (sessionViewMap[v.session_id] || 0) + 1; });
