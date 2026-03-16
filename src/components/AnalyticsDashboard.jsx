@@ -118,7 +118,6 @@ ${sheetToHTML("Event Entries", eventSubSheet)}
 // ── KPI Card ──────────────────────────────────────────────
 function KPI({ value, label, sub, delta, accent = false }) {
   const isPos = delta > 0;
-  const isNeg = delta < 0;
   const neutral = delta === 0 || delta === null || delta === undefined;
   return (
     <div className={`kpi-card${accent ? " kpi-card--accent" : ""}`}>
@@ -214,7 +213,6 @@ function BarChart({ rows, color = "var(--accent)", compareRows, compareColor = "
 
 // ── Donut ─────────────────────────────────────────────────
 function Donut({ segments }) {
-  const uid = useId().replace(/:/g, "");
   const total = segments.reduce((s, x) => s + x.value, 0) || 1;
   const R = 30, C = 2 * Math.PI * R;
   let cumPct = 0;
@@ -273,11 +271,8 @@ function ColBar({ rows }) {
 }
 
 // ── Author breakdown ──────────────────────────────────────
-function AuthorPanel({ articles, views, range }) {
+function AuthorPanel({ articles }) {
   const [sortBy, setSortBy] = useState("views");
-  const now = Date.now();
-  const rangeMs = range * 24 * 60 * 60 * 1000;
-  const windowViews = views.filter(v => now - new Date(v.viewed_at) < rangeMs);
 
   const authorMap = useMemo(() => {
     const map = {};
@@ -370,6 +365,7 @@ function DateRangePicker({ startDate, endDate, onChange }) {
   return (
     <div className="drp" ref={ref}>
       <button className="drp-trigger" onClick={() => setOpen(o => !o)}>
+        <span className="drp-icon">📅</span>
         <span>{fmt(startDate)} – {fmt(endDate)}</span>
         <span className="drp-chevron">{open ? "▲" : "▼"}</span>
       </button>
@@ -458,8 +454,8 @@ export default function AnalyticsDashboard() {
   };
 
   // ── Hooks that must run unconditionally (before any early return) ──
-  const articles_safe = raw?.articles ?? [];
   const filteredArticles = useMemo(() => {
+    const articles_safe = raw?.articles ?? [];
     let arr = [...articles_safe];
     if (articleSearch) {
       const q = articleSearch.toLowerCase();
@@ -479,7 +475,7 @@ export default function AnalyticsDashboard() {
       return articleSortDir === "asc" ? va - vb : vb - va;
     });
     return arr;
-  }, [articles_safe, articleSearch, articleCat, articleSort, articleSortDir]);
+  }, [raw?.articles, articleSearch, articleCat, articleSort, articleSortDir]);
 
   if (loading) return (
     <div className="loading-state">
@@ -809,7 +805,7 @@ export default function AnalyticsDashboard() {
               <span className="ad-card-title">Author Performance</span>
               <span className="ad-card-sub">{new Set(articles.map(a => a.author).filter(Boolean)).size} authors</span>
             </div>
-            <AuthorPanel articles={articles} views={windowViews} range={rangeDays} />
+            <AuthorPanel articles={articles} />
           </div>
         </div>
       )}
