@@ -303,3 +303,77 @@
   .ae-root--preview .ae-preview-pane { flex: 1; }
   .ae-meta-row { grid-template-columns: 1fr; }
 }
+/* Tags input wrap — looks like a multi-select field */
+.ae-tags-wrap {
+    display:       flex;
+    flex-wrap:     wrap;
+    align-items:   center;
+    gap:           6px;
+    min-height:    42px;
+    padding:       6px 10px;
+    background:    var(--surface2);
+    border:        1px solid var(--border);
+    border-radius: var(--radius);
+    cursor:        text;
+    transition:    border-color .2s;
+}
+.ae-tags-wrap:focus-within { border-color: var(--accent); }
+
+.ae-tag-pill {
+    display:       inline-flex;
+    align-items:   center;
+    gap:           5px;
+    padding:       3px 9px;
+    background:    rgba(232,255,71,0.1);
+    border:        1px solid rgba(232,255,71,0.25);
+    border-radius: 999px;
+    font-family:   var(--font-mono);
+    font-size:     11px;
+    color:         var(--accent);
+    letter-spacing:.04em;
+    white-space:   nowrap;
+}
+.ae-tag-remove {
+    background:  none;
+    border:      none;
+    color:       var(--accent);
+    font-size:   13px;
+    line-height: 1;
+    cursor:      pointer;
+    padding:     0;
+    opacity:     0.6;
+    transition:  opacity .15s;
+}
+.ae-tag-remove:hover { opacity: 1; }
+
+.ae-tags-input {
+    flex:        1;
+    min-width:   120px;
+    background:  transparent;
+    border:      none;
+    outline:     none;
+    color:       var(--text);
+    font-family: var(--font-body);
+    font-size:   14px;
+    padding:     2px 0;
+}
+.ae-tags-input::placeholder { color: var(--text-dim); }
+
+/* Preview: tag pills */
+.ae-preview-tags {
+    display:    flex;
+    flex-wrap:  wrap;
+    gap:        6px;
+    margin:     12px 0;
+}
+.ae-preview-tag {
+    font-family:    var(--font-mono);
+    font-size:      10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding:        3px 10px;
+    background:     rgba(232,255,71,0.08);
+    border:         1px solid rgba(232,255,71,0.2);
+    border-radius:  999px;
+    color:          var(--accent);
+}
