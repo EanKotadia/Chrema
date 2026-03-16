@@ -174,8 +174,8 @@ export default function SubmissionsPage({ embedded }) {
       if (action === "approve") {
         const created = await createArticle({
           title: item.title,
-          category: item.category || null,
-          excerpt: item.excerpt || null,
+          category: item.category,
+          excerpt: item.excerpt,
           body: item.body,
           author: item.name,
           published_at: new Date().toISOString(),

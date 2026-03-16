@@ -10,9 +10,12 @@ const ACCENT_OPTIONS = [
   "#e8ff47","#ff6b6b","#4ecdc4","#a78bfa","#fb923c","#38bdf8","#f472b6","#34d399",
 ];
 
+// ── start_date added here ─────────────────────────────────
 const EMPTY_EVENT = {
   title: "", slug: "", tagline: "", description: "", rules: "", prizes: "",
-  accent_color: "#e8ff47", grade_min: 8, deadline: "",
+  accent_color: "#e8ff47", grade_min: 8,
+  start_date: "",   // ← NEW
+  deadline: "",
   status: "draft", allow_articles: true, allow_drawings: true, banner_url: "",
 };
 
@@ -27,19 +30,20 @@ function EventForm({ initial, onSave, onCancel }) {
     if (!ev) return EMPTY_EVENT;
     return {
       ...ev,
-      // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
-      deadline: ev.deadline ? new Date(ev.deadline).toISOString().slice(0, 16) : "",
+      // Convert ISO strings → datetime-local format (YYYY-MM-DDTHH:mm)
+      start_date: ev.start_date ? new Date(ev.start_date).toISOString().slice(0, 16) : "",
+      deadline:   ev.deadline   ? new Date(ev.deadline).toISOString().slice(0, 16)   : "",
     };
   };
-  const [form, setForm] = useState(() => normalizeForForm(initial));
-  const [saving, setSaving]     = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError]       = useState("");
 
-  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+  const [form, setForm]       = useState(() => normalizeForForm(initial));
+  const [saving, setSaving]   = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError]     = useState("");
+
+  const set  = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
   const setB = k => e => setForm(p => ({ ...p, [k]: e.target.checked }));
 
-  // Auto-generate slug from title if new
   const handleTitleChange = e => {
     const v = e.target.value;
     setForm(p => ({
@@ -62,12 +66,19 @@ function EventForm({ initial, onSave, onCancel }) {
 
   const handleSave = async () => {
     if (!form.title || !form.slug) { setError("Title and slug are required."); return; }
+
+    // Validate: start_date must be before deadline if both set
+    if (form.start_date && form.deadline && new Date(form.start_date) >= new Date(form.deadline)) {
+      setError("Submissions open date must be before the deadline."); return;
+    }
+
     setSaving(true); setError("");
     try {
       const payload = {
         ...form,
-        grade_min: parseInt(form.grade_min) || 8,
-        deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
+        grade_min:  parseInt(form.grade_min) || 8,
+        start_date: form.start_date ? new Date(form.start_date).toISOString() : null, // ← NEW
+        deadline:   form.deadline   ? new Date(form.deadline).toISOString()   : null,
         banner_url: form.banner_url || null,
       };
       await onSave(payload);
@@ -112,11 +123,51 @@ function EventForm({ initial, onSave, onCancel }) {
         </div>
       </div>
 
+      {/* ── Submission window — start + end side by side ── */}
       <div className="aev-form-row">
         <div className="aev-field">
-          <label className="aev-label">Deadline</label>
-          <input className="aev-input" type="datetime-local" value={form.deadline} onChange={set("deadline")} />
+          <label className="aev-label">
+            Submissions Open
+            <span className="aev-field-hint">Leave blank to open immediately</span>
+          </label>
+          <input
+            className="aev-input"
+            type="datetime-local"
+            value={form.start_date}
+            onChange={set("start_date")}
+          />
         </div>
+        <div className="aev-field">
+          <label className="aev-label">
+            Submissions Close (Deadline)
+            <span className="aev-field-hint">Leave blank for no deadline</span>
+          </label>
+          <input
+            className="aev-input"
+            type="datetime-local"
+            value={form.deadline}
+            onChange={set("deadline")}
+          />
+        </div>
+      </div>
+
+      {/* Preview of the window so the admin can sanity-check */}
+      {(form.start_date || form.deadline) && (
+        <div className="aev-window-preview">
+          <span className="aev-window-preview-label">Submission window</span>
+          <span className="aev-window-preview-val">
+            {form.start_date
+              ? new Date(form.start_date).toLocaleString("en-GB", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })
+              : "Now"}
+            {" → "}
+            {form.deadline
+              ? new Date(form.deadline).toLocaleString("en-GB", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })
+              : "No end date"}
+          </span>
+        </div>
+      )}
+
+      <div className="aev-form-row">
         <div className="aev-field">
           <label className="aev-label">Minimum Grade</label>
           <select className="aev-input" value={form.grade_min} onChange={set("grade_min")}>
@@ -253,7 +304,6 @@ function SubRow({ sub, onApprove, onReject, onNeedsEdit, onSaveEdit, onDelete })
         </div>
       </div>
 
-      {/* Read-only preview */}
       {open && !editing && (
         <div className="aev-sub-detail">
           {sub.image_url && <img src={sub.image_url} alt={sub.title} className="aev-sub-img" />}
@@ -270,14 +320,12 @@ function SubRow({ sub, onApprove, onReject, onNeedsEdit, onSaveEdit, onDelete })
         </div>
       )}
 
-      {/* Edit form */}
       {editing && (
         <div className="aev-sub-edit">
           <div className="aev-sub-edit-header">
             <span className="aev-eyebrow">Editing Submission</span>
             <span className="aev-sub-edit-hint">Changes save directly to Supabase and update the public gallery if approved.</span>
           </div>
-
           <div className="aev-edit-row">
             <div className="aev-edit-field">
               <label className="aev-label">Submitter Name</label>
@@ -292,12 +340,10 @@ function SubRow({ sub, onApprove, onReject, onNeedsEdit, onSaveEdit, onDelete })
               <input className="aev-input" value={editForm.school} onChange={setF("school")} />
             </div>
           </div>
-
           <div className="aev-edit-field">
             <label className="aev-label">Title</label>
             <input className="aev-input" value={editForm.title} onChange={setF("title")} />
           </div>
-
           {sub.type === "article" && (
             <div className="aev-edit-field">
               <label className="aev-label">
@@ -314,7 +360,6 @@ function SubRow({ sub, onApprove, onReject, onNeedsEdit, onSaveEdit, onDelete })
               />
             </div>
           )}
-
           <div className="aev-edit-field">
             <label className="aev-label">
               Internal Admin Note
@@ -328,7 +373,6 @@ function SubRow({ sub, onApprove, onReject, onNeedsEdit, onSaveEdit, onDelete })
               placeholder="e.g. Asked student to trim conclusion — recheck before approving"
             />
           </div>
-
           <div className="aev-edit-actions">
             <button className="aev-btn aev-btn--cancel" onClick={() => setEditing(false)}>Cancel</button>
             <button className="aev-btn aev-btn--needs-edit" onClick={() => { onNeedsEdit(sub); setEditing(false); }}>
@@ -344,16 +388,22 @@ function SubRow({ sub, onApprove, onReject, onNeedsEdit, onSaveEdit, onDelete })
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" });
+}
+
 // ── Main AdminEvents ──────────────────────────────────────
 export default function AdminEvents() {
-  const [events, setEvents]         = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [creating, setCreating]     = useState(false);
-  const [editing, setEditing]       = useState(null);
-  const [activeEvent, setActiveEvent] = useState(null); // for viewing submissions
+  const [events, setEvents]           = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [creating, setCreating]       = useState(false);
+  const [editing, setEditing]         = useState(null);
+  const [activeEvent, setActiveEvent] = useState(null);
   const [submissions, setSubmissions] = useState([]);
-  const [subFilter, setSubFilter]   = useState("pending");
-  const [toast, setToast]           = useState(null);
+  const [subFilter, setSubFilter]     = useState("pending");
+  const [toast, setToast]             = useState(null);
 
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -368,60 +418,28 @@ export default function AdminEvents() {
     getEventSubmissions(ev.id).then(data => setSubmissions(Array.isArray(data) ? data : []));
   };
 
-  const handleCreate = async (payload) => {
-    await createEvent(payload);
-    load(); setCreating(false); showToast("Event created.");
-  };
-
-  const handleEdit = async (payload) => {
-    await updateEvent(editing.id, payload);
-    load(); setEditing(null); showToast("Event updated.");
-  };
-
+  const handleCreate = async (payload) => { await createEvent(payload); load(); setCreating(false); showToast("Event created."); };
+  const handleEdit   = async (payload) => { await updateEvent(editing.id, payload); load(); setEditing(null); showToast("Event updated."); };
   const handleDelete = async (ev) => {
     if (!window.confirm(`Delete "${ev.title}"?`)) return;
     await deleteEvent(ev.id); load(); showToast("Event deleted.", "error");
   };
-
   const handleArchive = async (ev) => {
     await updateEvent(ev.id, { status: ev.status === "active" ? "archived" : "active" });
     load(); showToast(ev.status === "active" ? "Event archived." : "Event re-activated.");
   };
-
-  const handleApprove = async (sub) => {
-    await updateEventSubmission(sub.id, { status: "approved" });
-    setSubmissions(p => p.map(s => s.id === sub.id ? { ...s, status: "approved" } : s));
-    showToast("Entry approved — now visible in gallery.");
-  };
-
-  const handleReject = async (sub) => {
-    await updateEventSubmission(sub.id, { status: "rejected" });
-    setSubmissions(p => p.map(s => s.id === sub.id ? { ...s, status: "rejected" } : s));
-    showToast("Entry rejected.");
-  };
-
-  const handleNeedsEdit = async (sub) => {
-    await updateEventSubmission(sub.id, { status: "needs_edit" });
-    setSubmissions(p => p.map(s => s.id === sub.id ? { ...s, status: "needs_edit" } : s));
-    showToast("Marked as needs edit.");
-  };
-
-  const handleSaveEdit = async (id, fields) => {
-    await updateEventSubmission(id, fields);
-    setSubmissions(p => p.map(s => s.id === id ? { ...s, ...fields } : s));
-    showToast("Submission updated.");
-  };
-
-  const handleDeleteSub = async (sub) => {
+  const handleApprove    = async (sub) => { await updateEventSubmission(sub.id, { status: "approved" });   setSubmissions(p => p.map(s => s.id === sub.id ? { ...s, status: "approved" }   : s)); showToast("Entry approved — now visible in gallery."); };
+  const handleReject     = async (sub) => { await updateEventSubmission(sub.id, { status: "rejected" });   setSubmissions(p => p.map(s => s.id === sub.id ? { ...s, status: "rejected" }   : s)); showToast("Entry rejected."); };
+  const handleNeedsEdit  = async (sub) => { await updateEventSubmission(sub.id, { status: "needs_edit" }); setSubmissions(p => p.map(s => s.id === sub.id ? { ...s, status: "needs_edit" } : s)); showToast("Marked as needs edit."); };
+  const handleSaveEdit   = async (id, fields) => { await updateEventSubmission(id, fields); setSubmissions(p => p.map(s => s.id === id ? { ...s, ...fields } : s)); showToast("Submission updated."); };
+  const handleDeleteSub  = async (sub) => {
     if (!window.confirm("Permanently delete this submission?")) return;
-    await deleteEventSubmission(sub.id);
-    setSubmissions(p => p.filter(s => s.id !== sub.id));
-    showToast("Submission deleted.", "error");
+    await deleteEventSubmission(sub.id); setSubmissions(p => p.filter(s => s.id !== sub.id)); showToast("Submission deleted.", "error");
   };
 
   const filteredSubs = subFilter === "all" ? submissions : submissions.filter(s => s.status === subFilter);
 
-
+  // ── Create / Edit form view ───────────────────────────
   if (creating || editing) {
     return (
       <div className="aev-page">
@@ -438,8 +456,14 @@ export default function AdminEvents() {
     );
   }
 
+  // ── Submissions view ──────────────────────────────────
   if (activeEvent) {
-    const counts = { pending: submissions.filter(s=>s.status==="pending").length, approved: submissions.filter(s=>s.status==="approved").length, "needs edit": submissions.filter(s=>s.status==="needs_edit").length, rejected: submissions.filter(s=>s.status==="rejected").length };
+    const counts = {
+      pending:    submissions.filter(s => s.status === "pending").length,
+      approved:   submissions.filter(s => s.status === "approved").length,
+      "needs edit": submissions.filter(s => s.status === "needs_edit").length,
+      rejected:   submissions.filter(s => s.status === "rejected").length,
+    };
     return (
       <div className="aev-page">
         <div className="aev-page-header">
@@ -490,6 +514,7 @@ export default function AdminEvents() {
     );
   }
 
+  // ── Event list view ───────────────────────────────────
   return (
     <div className="aev-page">
       <div className="aev-page-header">
@@ -506,27 +531,43 @@ export default function AdminEvents() {
         <div className="aev-empty">No events yet. Create your first one.</div>
       ) : (
         <div className="aev-event-list">
-          {events.map(ev => (
-            <div key={ev.id} className="aev-event-row">
-              <div className="aev-event-accent" style={{ background: ev.accent_color }} />
-              <div className="aev-event-info">
-                <span className={`aev-status aev-status--${ev.status}`}>{ev.status}</span>
-                <h3 className="aev-event-name">{ev.title}</h3>
-                <span className="aev-event-slug">/events/{ev.slug}</span>
+          {events.map(ev => {
+            const now = Date.now();
+            const beforeStart = ev.start_date && now < new Date(ev.start_date).getTime();
+            const afterEnd    = ev.deadline   && now > new Date(ev.deadline).getTime();
+            const windowLabel = (() => {
+              if (beforeStart) return `Opens ${fmtDate(ev.start_date)}`;
+              if (afterEnd)    return `Closed ${fmtDate(ev.deadline)}`;
+              if (ev.start_date && ev.deadline) return `${fmtDate(ev.start_date)} → ${fmtDate(ev.deadline)}`;
+              if (ev.deadline)   return `Closes ${fmtDate(ev.deadline)}`;
+              if (ev.start_date) return `Opens ${fmtDate(ev.start_date)}`;
+              return "No dates set";
+            })();
+            return (
+              <div key={ev.id} className="aev-event-row">
+                <div className="aev-event-accent" style={{ background: ev.accent_color }} />
+                <div className="aev-event-info">
+                  <span className={`aev-status aev-status--${ev.status}`}>{ev.status}</span>
+                  <h3 className="aev-event-name">{ev.title}</h3>
+                  <span className="aev-event-slug">/events/{ev.slug}</span>
+                </div>
+                <div className="aev-event-deadline">
+                  <span className="aev-event-window-label">Submissions</span>
+                  <span className={`aev-event-window-val ${beforeStart ? "aev-event-window--soon" : afterEnd ? "aev-event-window--closed" : ""}`}>
+                    {windowLabel}
+                  </span>
+                </div>
+                <div className="aev-event-actions">
+                  <button className="aev-row-btn" onClick={() => loadSubs(ev)}>Submissions</button>
+                  <button className="aev-row-btn" onClick={() => setEditing(ev)}>Edit</button>
+                  <button className="aev-row-btn" onClick={() => handleArchive(ev)}>
+                    {ev.status === "active" ? "Archive" : "Activate"}
+                  </button>
+                  <button className="aev-row-btn aev-row-btn--danger" onClick={() => handleDelete(ev)}>Delete</button>
+                </div>
               </div>
-              <div className="aev-event-deadline">
-                {ev.deadline ? new Date(ev.deadline).toLocaleDateString("en-GB", {day:"numeric",month:"short",year:"numeric"}) : "No deadline"}
-              </div>
-              <div className="aev-event-actions">
-                <button className="aev-row-btn" onClick={() => loadSubs(ev)}>Submissions</button>
-                <button className="aev-row-btn" onClick={() => setEditing(ev)}>Edit</button>
-                <button className="aev-row-btn" onClick={() => handleArchive(ev)}>
-                  {ev.status === "active" ? "Archive" : "Activate"}
-                </button>
-                <button className="aev-row-btn aev-row-btn--danger" onClick={() => handleDelete(ev)}>Delete</button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

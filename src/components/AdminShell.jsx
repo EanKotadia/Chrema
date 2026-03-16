@@ -7,7 +7,7 @@ import ArticlesManager from "./ArticlesManager";
 import "./AdminAuth.css";
 import "./AdminShell.css";
 
-const PASSCODE = process.env.REACT_APP_PASSCODE || "chréma2025";
+const PASSCODE = process.env.REACT_APP_PASSCODE;
 
 const TABS = [
   { key: "analytics",   label: "Analytics",   icon: "▲" },
@@ -76,8 +76,7 @@ export default function AdminShell({ initialView }) {
       <aside className="shell-sidebar">
         <div className="shell-sidebar-top">
           <a href="/" className="shell-logo">
-            <span className="shell-logo-mark">C</span>
-            <span className="shell-logo-text">HRÈMA</span>
+            <span className="shell-logo-mark">CHRÈMA</span>
           </a>
           <button className="shell-sidebar-toggle" onClick={() => setSidebarOpen(o => !o)}>
             {sidebarOpen ? "←" : "→"}
