@@ -61,7 +61,7 @@ function Toolbar({ editorRef, value, onChange }) {
     const ta = editorRef.current;
     if (!ta) return;
     const start = ta.selectionStart, end = ta.selectionEnd;
-    const sel   = value.slice(start, end);
+    const sel    = value.slice(start, end);
     const before = value.slice(0, start);
     const after  = value.slice(end);
 
@@ -93,7 +93,6 @@ function Toolbar({ editorRef, value, onChange }) {
     }, 0);
   }, [editorRef, value, onChange]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const ta = editorRef.current;
     if (!ta) return;
@@ -152,7 +151,8 @@ function ImageZone({ value, onChange, onError }) {
   };
 
   return (
-    <div className={`ae-image-zone ${dragOver ? "dragover" : ""} ${value ? "has-image" : ""}`}
+    <div
+      className={`ae-image-zone ${dragOver ? "dragover" : ""} ${value ? "has-image" : ""}`}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
@@ -194,9 +194,60 @@ function readTime(body) {
   return { words, mins: Math.max(1, Math.round(words / 200)) };
 }
 
+// ── Tags input — pill UI ──────────────────────────────────
+// Stores as comma-separated string internally, displays as pills.
+function TagsInput({ value, onChange }) {
+  const [input, setInput] = useState("");
+
+  // Parse current tags from the comma string
+  const tags = value
+    ? value.split(",").map(t => t.trim()).filter(Boolean)
+    : [];
+
+  const addTag = (raw) => {
+    const tag = raw.trim().toLowerCase().replace(/\s+/g, "-");
+    if (!tag || tags.includes(tag)) { setInput(""); return; }
+    onChange([...tags, tag].join(", "));
+    setInput("");
+  };
+
+  const removeTag = (tag) => {
+    onChange(tags.filter(t => t !== tag).join(", "));
+  };
+
+  const handleKeyDown = (e) => {
+    if (["Enter", ",", "Tab"].includes(e.key)) {
+      e.preventDefault();
+      addTag(input);
+    } else if (e.key === "Backspace" && !input && tags.length) {
+      removeTag(tags[tags.length - 1]);
+    }
+  };
+
+  return (
+    <div className="ae-tags-wrap">
+      {tags.map(tag => (
+        <span key={tag} className="ae-tag-pill">
+          {tag}
+          <button type="button" className="ae-tag-remove" onClick={() => removeTag(tag)}>×</button>
+        </span>
+      ))}
+      <input
+        className="ae-tags-input"
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={() => input && addTag(input)}
+        placeholder={tags.length === 0 ? "Add tags… (press Enter or comma)" : ""}
+      />
+    </div>
+  );
+}
+
 // ── Live HTML preview ─────────────────────────────────────
 function Preview({ form }) {
   const { words, mins } = readTime(form.body);
+  const tags = form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
   return (
     <div className="ae-preview">
       <div className="ae-preview-meta">
@@ -209,6 +260,11 @@ function Preview({ form }) {
       <h1 className="ae-preview-title">{form.title || "Untitled"}</h1>
       {form.excerpt && <p className="ae-preview-excerpt">{form.excerpt}</p>}
       {form.author && <p className="ae-preview-author">By {form.author}</p>}
+      {tags.length > 0 && (
+        <div className="ae-preview-tags">
+          {tags.map(t => <span key={t} className="ae-preview-tag">{t}</span>)}
+        </div>
+      )}
       <div className="ae-preview-body"
         dangerouslySetInnerHTML={{ __html: form.body || "<p style='color:var(--text-dim);font-style:italic'>Body will appear here…</p>" }}
       />
@@ -216,13 +272,28 @@ function Preview({ form }) {
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────
+// Convert comma string → clean array for Supabase text[] column.
+// Returns null if empty so the column stores NULL rather than {}.
+function tagsToArray(str) {
+  if (!str) return null;
+  const arr = str.split(",").map(t => t.trim().toLowerCase().replace(/\s+/g, "-")).filter(Boolean);
+  return arr.length ? arr : null;
+}
+
+// Convert text[] from Supabase → comma string for the input.
+function arrayToTags(arr) {
+  if (!arr || !Array.isArray(arr)) return "";
+  return arr.join(", ");
+}
+
 // ── Main editor ───────────────────────────────────────────
 export default function ArticleEditor({
-  initial = {},         // pre-filled values when editing
-  onSave,               // async (formData) => void
-  onDelete,             // optional () => void
+  initial = {},
+  onSave,
+  onDelete,
   saveLabel = "Publish Article",
-  mode = "create",      // "create" | "edit"
+  mode = "create",
 }) {
   const EMPTY = {
     title: "", excerpt: "", body: "", author: "",
@@ -230,14 +301,21 @@ export default function ArticleEditor({
     image_url: "", tags: "",
   };
 
-  const [form, setForm]       = useState({ ...EMPTY, ...initial });
+  // Normalise initial: convert tags array → string for the form
+  const normalised = {
+    ...EMPTY,
+    ...initial,
+    tags: arrayToTags(initial.tags),
+  };
+
+  const [form, setForm]         = useState(normalised);
   const [imgError, setImgError] = useState("");
-  const [saving, setSaving]   = useState(false);
-  const [status, setStatus]   = useState(null); // null | success | error
+  const [saving, setSaving]     = useState(false);
+  const [status, setStatus]     = useState(null);
   const [statusMsg, setStatusMsg] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [tab, setTab]         = useState("write"); // write | meta | cover
+  const [tab, setTab]           = useState("write");
   const bodyRef = useRef(null);
 
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
@@ -252,11 +330,12 @@ export default function ArticleEditor({
     try {
       await onSave({
         ...form,
-        image_url:    form.image_url || null,
+        image_url:    form.image_url    || null,
         published_at: form.published_at ? new Date(form.published_at).toISOString() : null,
-        author:       form.author || null,
-        category:     form.category || null,
-        excerpt:      form.excerpt || null,
+        author:       form.author       || null,
+        category:     form.category     || null,
+        excerpt:      form.excerpt      || null,
+        tags:         tagsToArray(form.tags), // ← converts "india, economy" → ["india","economy"] or null
       });
       setStatus("success");
       setStatusMsg(mode === "create" ? "Article published!" : "Changes saved.");
@@ -329,8 +408,6 @@ export default function ArticleEditor({
           {/* ── Write tab ── */}
           {tab === "write" && (
             <div className="ae-write-pane">
-
-              {/* Title — large, always visible */}
               <div className="ae-title-wrap">
                 <textarea
                   className="ae-title-input"
@@ -349,7 +426,6 @@ export default function ArticleEditor({
                 </div>
               </div>
 
-              {/* Excerpt — compact, below title */}
               <div className="ae-excerpt-wrap">
                 <textarea
                   className="ae-excerpt-input"
@@ -363,7 +439,6 @@ export default function ArticleEditor({
                 </span>
               </div>
 
-              {/* Toolbar + body */}
               <div className="ae-body-editor">
                 <Toolbar editorRef={bodyRef} value={form.body} onChange={setBody} />
                 <textarea
@@ -375,7 +450,6 @@ export default function ArticleEditor({
                   spellCheck
                 />
               </div>
-
             </div>
           )}
 
@@ -410,8 +484,14 @@ export default function ArticleEditor({
               </div>
 
               <div className="ae-field">
-                <label className="ae-label">Tags <span className="ae-label-hint">comma-separated, optional</span></label>
-                <input className="ae-input" value={form.tags || ""} onChange={set("tags")} placeholder="e.g. india, economy, finance" />
+                <label className="ae-label">
+                  Tags
+                  <span className="ae-label-hint">optional — press Enter or comma to add</span>
+                </label>
+                <TagsInput
+                  value={form.tags}
+                  onChange={v => setForm(p => ({ ...p, tags: v }))}
+                />
               </div>
 
               <div className="ae-meta-preview-card">

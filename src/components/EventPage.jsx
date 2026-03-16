@@ -3,6 +3,14 @@ import { getEventBySlug, submitEventEntry, uploadImage, getEventSubmissions } fr
 import Footer from "./Footer";
 import "./EventPage.css";
 
+// ── IST date formatter (used everywhere in this file) ─────
+const IST = "Asia/Kolkata";
+function fmtUTCDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString("en-GB", {
+    day: "numeric", month: "long", year: "numeric", timeZone: IST,
+  });
+}
+
 // ── Countdown ─────────────────────────────────────────────
 function Countdown({ deadline }) {
   const [t, setT] = useState(null);
@@ -146,16 +154,12 @@ function SubmitForm({ event, onSuccess }) {
     <div className="event-form">
       <div className="event-form-type-toggle">
         {event.allow_articles && (
-          <button
-            className={`type-btn ${form.type === "article" ? "active" : ""}`}
-            onClick={() => setForm(p => ({ ...p, type: "article" }))}
-          >Article</button>
+          <button className={`type-btn ${form.type === "article" ? "active" : ""}`}
+            onClick={() => setForm(p => ({ ...p, type: "article" }))}>Article</button>
         )}
         {event.allow_drawings && (
-          <button
-            className={`type-btn ${form.type === "drawing" ? "active" : ""}`}
-            onClick={() => setForm(p => ({ ...p, type: "drawing" }))}
-          >Artwork / Drawing</button>
+          <button className={`type-btn ${form.type === "drawing" ? "active" : ""}`}
+            onClick={() => setForm(p => ({ ...p, type: "drawing" }))}>Artwork / Drawing</button>
         )}
       </div>
 
@@ -195,13 +199,8 @@ function SubmitForm({ event, onSuccess }) {
       {form.type === "article" && (
         <div className="ef-field">
           <label className="ef-label">Your Article * <span className="ef-hint">300–1500 words</span></label>
-          <textarea
-            className="ef-input ef-textarea"
-            rows={12}
-            value={form.body}
-            onChange={set("body")}
-            placeholder="Write your article here…"
-          />
+          <textarea className="ef-input ef-textarea" rows={12} value={form.body} onChange={set("body")}
+            placeholder="Write your article here…" />
           <span className="ef-word-count">
             {form.body.trim().split(/\s+/).filter(Boolean).length} words
           </span>
@@ -223,12 +222,8 @@ function SubmitForm({ event, onSuccess }) {
 
       {error && <p className="ef-error">{error}</p>}
 
-      <button
-        className="ef-submit-btn"
-        onClick={handleSubmit}
-        disabled={!valid || submitting}
-        style={{ "--ev-accent": event.accent_color }}
-      >
+      <button className="ef-submit-btn" onClick={handleSubmit} disabled={!valid || submitting}
+        style={{ "--ev-accent": event.accent_color }}>
         {uploading ? "Uploading image…" : submitting ? "Submitting…"
           : `Submit ${form.type === "drawing" ? "Artwork" : "Article"} →`}
       </button>
@@ -238,28 +233,17 @@ function SubmitForm({ event, onSuccess }) {
 
 // ── "Opens in" panel shown on submit tab before start_date ─
 function OpensIn({ startDate }) {
-  const fmtDate = new Date(startDate).toLocaleDateString("en-GB", {
-    day: "numeric", month: "long", year: "numeric",
-  });
   return (
     <div className="event-not-open-wrap">
       <div className="event-not-open-card">
         <span className="eno-icon">🗓</span>
-        <h3 className="eno-heading">Submissions open on {fmtDate}</h3>
+        <h3 className="eno-heading">Submissions open on {fmtUTCDate(startDate)}</h3>
         <p className="eno-sub">Check back then to submit your entry.</p>
         <div className="eno-countdown-label">Opens in</div>
         <Countdown deadline={startDate} />
       </div>
     </div>
   );
-}
-
-// ── Helpers ───────────────────────────────────────────────
-function fmtUTCDate(dateStr) {
-  return new Date(dateStr).toLocaleDateString("en-GB", {
-    day: "numeric", month: "long", year: "numeric",
-    timeZone: "Asia/Kolkata",
-  });
 }
 
 // ── Main page ─────────────────────────────────────────────
@@ -284,9 +268,7 @@ export default function EventPage({ slug }) {
   }, [slug]);
 
   if (loading) return (
-    <div className="loading-state" style={{minHeight:"100vh"}}>
-      <div className="loading-spinner"/>
-    </div>
+    <div className="loading-state" style={{minHeight:"100vh"}}><div className="loading-spinner"/></div>
   );
   if (notFound) return (
     <div className="event-not-found">
@@ -319,7 +301,6 @@ export default function EventPage({ slug }) {
   return (
     <div className="event-page" style={{"--ev-accent": accent}}>
 
-      {/* Nav */}
       <header className="event-nav">
         <a href="/" className="event-nav-logo">CHRÈMA</a>
         <div className="event-nav-right">
@@ -328,7 +309,6 @@ export default function EventPage({ slug }) {
         </div>
       </header>
 
-      {/* Banner */}
       <section className="event-banner">
         {event.banner_url && (
           <div className="event-banner-bg">
@@ -352,12 +332,6 @@ export default function EventPage({ slug }) {
           </div>
 
           <div className="event-banner-right">
-            {isOpen && deadline && (
-              <div className="event-countdown-wrap">
-                <span className="event-countdown-label">Closes in</span>
-                <Countdown deadline={event.deadline} />
-              </div>
-            )}
             {beforeStart && (
               <div className="event-countdown-wrap">
                 <span className="event-countdown-label">Opens in</span>
@@ -390,24 +364,20 @@ export default function EventPage({ slug }) {
         </div>
       </section>
 
-      {/* Tab bar */}
       <div className="event-tabs">
         {[
           { key: "about",   label: "About",             disabled: false },
           { key: "submit",  label: submitTabLabel,       disabled: submitTabDisabled },
           { key: "gallery", label: `Gallery${approvedCount ? ` (${approvedCount})` : ""}`, disabled: false },
         ].map(({ key, label, disabled }) => (
-          <button
-            key={key}
+          <button key={key}
             className={`ev-tab ${tab === key ? "active" : ""} ${disabled ? "disabled" : ""}`}
-            onClick={() => !disabled && setTab(key)}
-          >
+            onClick={() => !disabled && setTab(key)}>
             {label}
           </button>
         ))}
       </div>
 
-      {/* ── Announcement bar ── */}
       {beforeStart && (
         <div className="event-opens-bar">
           <div className="event-opens-bar-left">
@@ -424,17 +394,14 @@ export default function EventPage({ slug }) {
         </div>
       )}
 
-      {/* Content */}
       <div className="event-content">
 
-        {/* ── About ── */}
         {tab === "about" && (
           <div className="event-about">
             <div className="event-about-inner">
               <div className="event-about-main">
                 <span className="ev-section-label">About this event</span>
                 <p className="event-description">{event.description}</p>
-
                 {event.rules && (
                   <div className="event-rules">
                     <span className="ev-section-label">Rules & Eligibility</span>
@@ -445,7 +412,6 @@ export default function EventPage({ slug }) {
                     </ul>
                   </div>
                 )}
-
                 {event.prizes && (
                   <div className="event-prizes">
                     <span className="ev-section-label">Recognition</span>
@@ -461,7 +427,6 @@ export default function EventPage({ slug }) {
               <div className="event-about-side">
                 <div className="event-side-card">
                   <span className="ev-section-label">Submission Window</span>
-
                   {beforeStart ? (
                     <>
                       <div className="event-side-opens-hero">
@@ -478,9 +443,7 @@ export default function EventPage({ slug }) {
                       )}
                       <p className="event-side-note">Opens in</p>
                       <Countdown deadline={event.start_date} />
-                      <button className="event-cta-btn event-cta-btn--disabled" disabled>
-                        Not yet open
-                      </button>
+                      <button className="event-cta-btn event-cta-btn--disabled" disabled>Not yet open</button>
                     </>
                   ) : (
                     <>
@@ -503,11 +466,7 @@ export default function EventPage({ slug }) {
                         </>
                       )}
                       {isOpen && (
-                        <button
-                          className="event-cta-btn"
-                          style={{"--ev-accent": accent}}
-                          onClick={() => setTab("submit")}
-                        >
+                        <button className="event-cta-btn" style={{"--ev-accent": accent}} onClick={() => setTab("submit")}>
                           Submit Now →
                         </button>
                       )}
@@ -519,7 +478,6 @@ export default function EventPage({ slug }) {
           </div>
         )}
 
-        {/* ── Submit ── */}
         {tab === "submit" && (
           <div className="event-submit-wrap">
             {beforeStart ? (
@@ -544,7 +502,6 @@ export default function EventPage({ slug }) {
           </div>
         )}
 
-        {/* ── Gallery ── */}
         {tab === "gallery" && (
           <div className="event-gallery-wrap">
             <div className="event-gallery-header">
