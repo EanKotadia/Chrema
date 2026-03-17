@@ -16,7 +16,6 @@ export default function EventsArchive() {
 
   const active   = events.filter(e => e.status === "active");
   const archived = events.filter(e => e.status === "archived");
-  // const draft    = events.filter(e => e.status === "draft");
 
   return (
     <div className="archive-page">

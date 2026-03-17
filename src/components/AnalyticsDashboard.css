@@ -3,13 +3,11 @@
    Aesthetic: Editorial dark · Mono accents · Razor typography
    ───────────────────────────────────────────────────────── */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap');
-
 /* ── Tokens ── */
 .ad-page {
   --accent:       #e8ff47;
-  --accent2:      #ff6b6b;
-  --accent3:      #a78bfa;
+  --accent2: #ff6b6b;
+  --accent3: #8bccfa;
   --bg:           #0d0d0d;
   --surface:      #141414;
   --surface2:     #1c1c1c;

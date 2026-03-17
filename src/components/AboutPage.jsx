@@ -2,30 +2,51 @@ import Footer from "./Footer";
 import "./AboutPage.css";
 
 const TEAM = [
-  {
-    name: "Amitesh",
-    role: "Founder & Editor-in-Chief",
-    grade: "Grade 11",
-    accent: "founder",
-    bio: [
-      "Amitesh is the founder of Chréma Magazine. A passionate advocate for young voices, he found his own through writing and competitive debate — and never looked back.",
-      "He believes deeply in the empowerment of students through expression, and that giving young people the space to write is one of the most powerful investments in the next generation.",
-      "As Founder, Amitesh sets the direction of Chréma, designates work across the team, and is ultimately responsible for everything the magazine stands for.",
-    ],
-  },
-  {
-    name: "Ean",
-    role: "Co-Founder & Technology",
-    grade: "Grade 11",
-    accent: "cofounder",
-    bio: [
-      "Ean is the co-founder and the mind behind everything you're interacting with right now. A Grade 11 science student with a deep love for technology, he designed and built Chréma from the ground up.",
-      "Like Amitesh, Ean discovered his resilience and confidence through debate and writing — and channelled that energy into building platforms that give others the same opportunity.",
-      "Extremely tech-savvy, Ean operates the backend infrastructure, architecture, and every pixel of this website.",
-    ],
-  },
+    {
+        name: "Amitesh Choudhary",
+        role: "Founder & Editor-in-Chief",
+        grade: "Grade 11",
+        accent: "founder",
+        bio: [
+            "Amitesh is the founder of Chréma Magazine. A passionate advocate for young voices, he found his own through writing and competitive debate — and never looked back.",
+            "He believes deeply in the empowerment of students through expression, and that giving young people the space to write is one of the most powerful investments in the next generation.",
+            "As Founder, Amitesh sets the direction of Chréma, designates work across the team, and is ultimately responsible for everything the magazine stands for.",
+        ],
+    },
+    {
+        name: "Ean Kotadia",
+        role: "Co-Founder & Technology",
+        grade: "Grade 11",
+        accent: "cofounder",
+        bio: [
+            "Ean is the co-founder and the mind behind everything you're interacting with right now. A Grade 11 science student with a deep love for technology, he designed and built Chréma from the ground up.",
+            "Like Amitesh, Ean discovered his resilience and confidence through debate and writing — and channelled that energy into building platforms that give others the same opportunity.",
+            "Extremely tech-savvy, Ean operates the backend infrastructure, architecture, and every pixel of this website.",
+        ],
+    },
+    {
+        name: "Ayaan Warsi",
+        role: "Logistics Coordinator",
+        grade: "Grade 10",
+        accent: "logistics-coordinator",
+        bio: [
+            "Ayaan is the Logistics Coordinator of Chréma Magazine, helping ensure the publication runs smoothly behind the scenes with structure, consistency, and reliability.",
+            "Thoughtful and dependable, he brings organisation, clarity, and a strong sense of responsibility to the team’s workflow and day-to-day operations.",
+            "As Logistics Coordinator, Ayaan supports internal coordination, planning, and execution, helping keep Chréma efficient, aligned, and moving forward.",
+        ],
+    },
+    {
+        name: "Navya Kashnia",
+        role: " Shalom Logistics Coordinator",
+        grade: "Grade 11",
+        accent: "coeditor",
+        bio: [
+            "Navya is a Grade 11 student and serves as the Logistics Coordinator of Chréma Magazine, helping ensure the publication runs smoothly through strong organisation and planning.",
+            "Calm, dependable, and detail-oriented, she brings structure and consistency to the team’s workflow while helping keep every moving part aligned.",
+            "As Logistics Coordinator, Navya supports internal coordination, manages processes behind the scenes, and helps maintain the efficiency and rhythm that keep Chréma moving forward.",
+        ],
+    },
 ];
-
 const TICKER_WORDS = ["Empower", "Write", "Debate", "Create", "Publish", "Lead"];
 // Duplicate enough times to guarantee seamless fill across any screen width
 const TICKER_FULL = [...TICKER_WORDS, ...TICKER_WORDS, ...TICKER_WORDS, ...TICKER_WORDS];
