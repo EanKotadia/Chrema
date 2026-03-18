@@ -486,9 +486,10 @@ export default function AnalyticsDashboard() {
     <div className="ad-error"><span>⚠</span><p>Failed to load: {error}</p></div>
   );
 
-  const { articles, submissions, views, eventSubs } = raw;
-
-  // ── Date window helpers ───────────────────────────────
+    const articles    = raw?.articles    ?? [];
+    const submissions = raw?.submissions ?? [];
+    const views       = raw?.views       ?? [];
+    const eventSubs   = raw?.eventSubs   ?? [];
   const startMs = new Date(startDate).getTime();
   const endMs   = new Date(endDate).getTime() + 86400000;
   const rangeDays = Math.round((endMs - startMs) / 86400000);
