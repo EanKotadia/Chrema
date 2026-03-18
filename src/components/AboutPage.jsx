@@ -25,6 +25,17 @@ const TEAM = [
         ],
     },
     {
+        name: "Nimardeep Singh",
+        role: "Co-Founder & Buisness",
+        grade: "Grade 11",
+        accent: "cofounder",
+        bio: [
+            "Nimardeep is the co-founder who brings Chréma’s vision to life through strategy, leadership, and execution. A Grade 11 student with a strong entrepreneurial mindset, he plays a key role in shaping the platform’s direction and growth.",
+            "With a natural ability to lead and connect ideas with action, Nimardeep helps transform concepts into meaningful initiatives that create real opportunities for students.",
+            "From planning and outreach to decision-making and development, Nimardeep ensures that Chréma grows not just as a platform, but as a community-driven mission.",
+        ],
+    },
+    {
         name: "Ayaan Warsi",
         role: "Logistics Coordinator",
         grade: "Grade 10",

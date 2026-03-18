@@ -82,13 +82,12 @@ function exportToExcel(data) {
   ];
 
   const sheetToHTML = (name, rows) => `<table>${rows.map((row, ri) =>
-    `<tr>${row.map((cell, ci) => {
+    `<tr>${row.map((cell) => {
       const isHeader = ri === 0 || ri === 2;
       return `<td${isHeader ? ' style="font-weight:bold;background:#e8ff47"' : ''}>${cell == null ? "" : cell}</td>`;
     }).join("")}</tr>`).join("")}</table>`;
 
-  const workbook = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
-xmlns:x="urn:schemas-microsoft-com:office:excel"
+  const workbook = `<html lang="en" xmlns:x="urn:schemas-microsoft-com:office:excel"
 xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8">
 <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>
@@ -136,7 +135,7 @@ function KPI({ value, label, sub, delta, accent = false }) {
 }
 
 // ── Comparison Sparkline ──────────────────────────────────
-function CompareChart({ current, previous, range, height = 96 }) {
+function CompareChart({ current, previous, height = 96 }) {
   const uid = useId().replace(/:/g, "");
   if (!current?.length) return <p className="ad-empty ad-empty--center">No views recorded yet.</p>;
   const allVals = [...current, ...(previous || [])];
@@ -675,7 +674,6 @@ export default function AnalyticsDashboard() {
             <CompareChart
               current={dailyViews}
               previous={showCompare ? prevDailyViews : null}
-              range={rangeDays}
               height={96}
             />
             <div className="ad-spark-labels">

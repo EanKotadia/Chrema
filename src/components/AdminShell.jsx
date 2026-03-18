@@ -4,7 +4,6 @@ import SubmissionsPage from "./SubmissionsPage";
 import AnalyticsDashboard from "./AnalyticsDashboard";
 import AdminEvents from "./AdminEvents";
 import ArticlesManager from "./ArticlesManager";
-import "./AdminAuth.css";
 import "./AdminShell.css";
 
 const PASSCODE = process.env.REACT_APP_PASSCODE;

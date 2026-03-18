@@ -12,7 +12,7 @@ export default function Footer() {
           <a href="/about">About Us</a>
           <a href="/submit">Write for Us</a>
           <a href="/events">Events & Contests</a>
-          <a href="/about#team">Meet the Team</a>
+          <a href="/about">Meet the Team</a>
         </div>
         <div className="footer-bottom">
           <span>© {new Date().getFullYear()} Chréma Magazine. All rights reserved.</span>
