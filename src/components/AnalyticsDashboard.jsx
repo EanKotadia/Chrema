@@ -1,8 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef, useId } from "react";
-import {
-    getAnalytics, getEvents, getEventSubmissions,
-    getPageViewStats, getArticlesWithViews,
-} from "../utils/supabase";
+import { fetchAnalyticsData } from "../utils/analytics";
 import { formatDate } from "../utils/dateUtils";
 import "./AnalyticsDashboard.css";
 
@@ -74,21 +71,20 @@ function exportToExcel(data) {
         ["Event Submissions", `Generated: ${now}`],
         [],
         ["Event", "Name", "Grade", "School", "Type", "Title", "Status", "Submitted"],
-        ...eventSubs.map(s => [
+        ...(eventSubs || []).map(s => [
             s.event_slug || "—", s.name, s.grade || "—", s.school || "—",
             s.type, s.title, s.status,
             new Date(s.submitted_at).toLocaleDateString("en-GB"),
         ]),
     ];
 
-    const sheetToHTML = (name, rows) => `<table>${rows.map((row, ri) =>
-        `<tr>${row.map((cell, ci) => {
+    const sheetToHTML = (_name, rows) => `<table>${rows.map((row, ri) =>
+        `<tr>${row.map((cell) => {
             const isHeader = ri === 0 || ri === 2;
             return `<td${isHeader ? ' style="font-weight:bold;background:#e8ff47"' : ''}>${cell == null ? "" : cell}</td>`;
         }).join("")}</tr>`).join("")}</table>`;
 
-    const workbook = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
-xmlns:x="urn:schemas-microsoft-com:office:excel"
+    const workbook = `<html lang="en" xmlns:x="urn:schemas-microsoft-com:office:excel"
 xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8">
 <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>
@@ -125,8 +121,8 @@ function KPI({ value, label, sub, delta, accent = false }) {
                 <span className="kpi-value">{value}</span>
                 {!neutral && (
                     <span className={`kpi-delta ${isPos ? "up" : "down"}`}>
-            {isPos ? "↑" : "↓"}{Math.abs(delta)}%
-          </span>
+                        {isPos ? "↑" : "↓"}{Math.abs(delta)}%
+                    </span>
                 )}
             </div>
             <span className="kpi-label">{label}</span>
@@ -136,7 +132,7 @@ function KPI({ value, label, sub, delta, accent = false }) {
 }
 
 // ── Comparison Sparkline ──────────────────────────────────
-function CompareChart({ current, previous, range, height = 96 }) {
+function CompareChart({ current, previous, height = 96 }) {
     const uid = useId().replace(/:/g, "");
     if (!current?.length) return <p className="ad-empty ad-empty--center">No views recorded yet.</p>;
     const allVals = [...current, ...(previous || [])];
@@ -149,15 +145,12 @@ function CompareChart({ current, previous, range, height = 96 }) {
         return `${x.toFixed(2)},${y.toFixed(2)}`;
     }).join(" ");
 
-    const toArea = (pts) => {
-        const line = toPoints(pts);
-        return `0,${H} ${line} ${W},${H}`;
-    };
+    const toArea = (pts) => `0,${H} ${toPoints(pts)} ${W},${H}`;
 
-    const curPts = toPoints(current);
+    const curPts  = toPoints(current);
     const curArea = toArea(current);
-    const prevPts = previous?.length ? toPoints(previous) : null;
-    const prevArea = previous?.length ? toArea(previous) : null;
+    const prevPts  = previous?.length ? toPoints(previous) : null;
+    const prevArea = previous?.length ? toArea(previous)   : null;
 
     return (
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
@@ -173,8 +166,8 @@ function CompareChart({ current, previous, range, height = 96 }) {
                 </linearGradient>
             </defs>
             {prevArea && <polygon points={prevArea} fill={`url(#pg-${uid})`} />}
-            {prevPts && <polyline points={prevPts} fill="none" stroke="var(--muted)" strokeWidth="1"
-                                  strokeDasharray="3 3" strokeLinejoin="round" strokeLinecap="round" opacity="0.5" />}
+            {prevPts  && <polyline points={prevPts} fill="none" stroke="var(--muted)" strokeWidth="1"
+                                   strokeDasharray="3 3" strokeLinejoin="round" strokeLinecap="round" opacity="0.5" />}
             <polygon points={curArea} fill={`url(#cg-${uid})`} />
             <polyline points={curPts} fill="none" stroke="var(--accent)" strokeWidth="2"
                       strokeLinejoin="round" strokeLinecap="round" />
@@ -333,20 +326,13 @@ function DateRangePicker({ startDate, endDate, onChange }) {
     const [open, setOpen] = useState(false);
     const [tempStart, setTempStart] = useState(startDate);
     const [tempEnd, setTempEnd] = useState(endDate);
-    const ref = useRef();
+    const ref = useRef(null);
 
     useEffect(() => {
         const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
         document.addEventListener("mousedown", handler);
         return () => document.removeEventListener("mousedown", handler);
     }, []);
-
-    const presets = [
-        { label: "7d", days: 7 },
-        { label: "30d", days: 30 },
-        { label: "90d", days: 90 },
-        { label: "All", days: 365 },
-    ];
 
     const applyPreset = (days) => {
         const end = new Date();
@@ -355,12 +341,7 @@ function DateRangePicker({ startDate, endDate, onChange }) {
         setOpen(false);
     };
 
-    const applyCustom = () => {
-        onChange(tempStart, tempEnd);
-        setOpen(false);
-    };
-
-    const fmt = d => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
+    const fmt = d => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit", timeZone: "Asia/Kolkata" });
 
     return (
         <div className="drp" ref={ref}>
@@ -372,14 +353,14 @@ function DateRangePicker({ startDate, endDate, onChange }) {
             {open && (
                 <div className="drp-panel">
                     <div className="drp-presets">
-                        {presets.map(p => (
-                            <button key={p.label} className="drp-preset" onClick={() => applyPreset(p.days)}>{p.label}</button>
+                        {[["7d", 7], ["30d", 30], ["90d", 90], ["All", 365]].map(([label, days]) => (
+                            <button key={label} className="drp-preset" onClick={() => applyPreset(days)}>{label}</button>
                         ))}
                     </div>
                     <div className="drp-custom">
                         <label>From <input type="date" value={tempStart} onChange={e => setTempStart(e.target.value)} /></label>
                         <label>To <input type="date" value={tempEnd} onChange={e => setTempEnd(e.target.value)} /></label>
-                        <button className="drp-apply" onClick={applyCustom}>Apply</button>
+                        <button className="drp-apply" onClick={() => { onChange(tempStart, tempEnd); setOpen(false); }}>Apply</button>
                     </div>
                 </div>
             )}
@@ -413,50 +394,31 @@ export default function AnalyticsDashboard() {
     const [articleSortDir, setArticleSortDir] = useState("desc");
     const [showCompare, setShowCompare] = useState(true);
 
-    // Date range state
-    const initEnd = new Date().toISOString().slice(0, 10);
+    const initEnd   = new Date().toISOString().slice(0, 10);
     const initStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const [startDate, setStartDate] = useState(initStart);
-    const [endDate, setEndDate] = useState(initEnd);
+    const [endDate,   setEndDate]   = useState(initEnd);
 
     const load = useCallback(() => {
         setLoading(true);
-        Promise.all([
-            getAnalytics(),
-            getArticlesWithViews(),
-            getPageViewStats(),
-            getEvents().catch(() => []),
-            getEventSubmissions(null).catch(() => []),
-        ]).then(([analytics, articlesWithViews, views, events, eventSubs]) => {
-            setRaw({
-                articles:    Array.isArray(articlesWithViews)     ? articlesWithViews     : [],
-                submissions: Array.isArray(analytics.submissions) ? analytics.submissions : [],
-                trash:       Array.isArray(analytics.trash)       ? analytics.trash       : [],
-                views:       Array.isArray(views)                 ? views                 : [],
-                events:      Array.isArray(events)                ? events                : [],
-                eventSubs:   Array.isArray(eventSubs)             ? eventSubs             : [],
-            });
-            setLoading(false);
-        }).catch(err => { setError(err.message); setLoading(false); });
+        fetchAnalyticsData()
+            .then(({ articles, submissions, views }) => {
+                setRaw({
+                    articles:    articles,
+                    submissions: submissions,
+                    views:       views,
+                    eventSubs:   [],
+                });
+                setLoading(false);
+            })
+            .catch(err => { setError(err.message); setLoading(false); });
     }, []);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => { void load(); }, [load]);
 
-    const handleExport = async () => {
-        setExporting(true);
-        try { exportToExcel(raw); }
-        finally { setTimeout(() => setExporting(false), 800); }
-    };
-
-    const handleRangeChange = (start, end) => {
-        setStartDate(start);
-        setEndDate(end);
-    };
-
-    // ── Hooks that must run unconditionally (before any early return) ──
     const filteredArticles = useMemo(() => {
-        const articles_safe = raw?.articles ?? [];
-        let arr = [...articles_safe];
+        const safe = raw?.articles ?? [];
+        let arr = [...safe];
         if (articleSearch) {
             const q = articleSearch.toLowerCase();
             arr = arr.filter(a =>
@@ -467,11 +429,10 @@ export default function AnalyticsDashboard() {
         }
         if (articleCat !== "All") arr = arr.filter(a => a.category === articleCat);
         arr.sort((a, b) => {
-            let va, vb;
-            if (articleSort === "views") { va = a.view_count || 0; vb = b.view_count || 0; }
-            else if (articleSort === "title") { va = a.title || ""; vb = b.title || ""; return articleSortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va); }
-            else if (articleSort === "published") { va = a.published_at ? new Date(a.published_at).getTime() : 0; vb = b.published_at ? new Date(b.published_at).getTime() : 0; }
-            else if (articleSort === "author") { va = a.author || ""; vb = b.author || ""; return articleSortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va); }
+            if (articleSort === "title")  { const d = (a.title  || "").localeCompare(b.title  || ""); return articleSortDir === "asc" ? d : -d; }
+            if (articleSort === "author") { const d = (a.author || "").localeCompare(b.author || ""); return articleSortDir === "asc" ? d : -d; }
+            const va = articleSort === "published" ? (a.published_at ? new Date(a.published_at).getTime() : 0) : (a.view_count || 0);
+            const vb = articleSort === "published" ? (b.published_at ? new Date(b.published_at).getTime() : 0) : (b.view_count || 0);
             return articleSortDir === "asc" ? va - vb : vb - va;
         });
         return arr;
@@ -487,63 +448,51 @@ export default function AnalyticsDashboard() {
         <div className="ad-error"><span>⚠</span><p>Failed to load: {error}</p></div>
     );
 
-    const { articles, submissions, views, eventSubs } = raw;
+    const articles    = raw?.articles    ?? [];
+    const submissions = raw?.submissions ?? [];
+    const views       = raw?.views       ?? [];
+    const eventSubs   = raw?.eventSubs   ?? [];
 
-    // ── Date window helpers ───────────────────────────────
-    const startMs = new Date(startDate).getTime();
-    const endMs   = new Date(endDate).getTime() + 86400000;
-    const rangeDays = Math.round((endMs - startMs) / 86400000);
-
-    const windowViews = views.filter(v => {
-        const t = new Date(v.viewed_at).getTime();
-        return t >= startMs && t < endMs;
-    });
-
+    const startMs   = new Date(startDate).getTime();
+    const endMs     = new Date(endDate).getTime() + 86400000;
+    const rangeDays = Math.max(Math.round((endMs - startMs) / 86400000), 1);
     const prevStart = startMs - (endMs - startMs);
-    const prevViews = views.filter(v => {
-        const t = new Date(v.viewed_at).getTime();
-        return t >= prevStart && t < startMs;
-    });
 
-    // ── KPI computation ──────────────────────────────────
-    const totalViews      = windowViews.length;
-    const prevTotalViews  = prevViews.length;
-    const viewDelta       = prevTotalViews > 0 ? Math.round(((totalViews - prevTotalViews) / prevTotalViews) * 100) : null;
+    const windowViews = views.filter(v => { const t = new Date(v.viewed_at).getTime(); return t >= startMs && t < endMs; });
+    const prevViews   = views.filter(v => { const t = new Date(v.viewed_at).getTime(); return t >= prevStart && t < startMs; });
 
-    const uniqueSessions  = new Set(windowViews.map(v => v.session_id)).size;
-    const prevSessions    = new Set(prevViews.map(v => v.session_id)).size;
-    const sessionDelta    = prevSessions > 0 ? Math.round(((uniqueSessions - prevSessions) / prevSessions) * 100) : null;
+    const totalViews     = windowViews.length;
+    const prevTotalViews = prevViews.length;
+    const viewDelta      = prevTotalViews > 0 ? Math.round(((totalViews - prevTotalViews) / prevTotalViews) * 100) : null;
+
+    const uniqueSessions = new Set(windowViews.map(v => v.session_id)).size;
+    const prevSessions   = new Set(prevViews.map(v => v.session_id)).size;
+    const sessionDelta   = prevSessions > 0 ? Math.round(((uniqueSessions - prevSessions) / prevSessions) * 100) : null;
 
     const avgDepth = uniqueSessions > 0 ? (totalViews / uniqueSessions).toFixed(1) : "0";
 
     const sessionViewMap = {};
     windowViews.forEach(v => { sessionViewMap[v.session_id] = (sessionViewMap[v.session_id] || 0) + 1; });
-    const bounceSessions = Object.values(sessionViewMap).filter(n => n === 1).length;
-    const bounceRate = uniqueSessions > 0 ? `${Math.round((bounceSessions / uniqueSessions) * 100)}%` : "—";
+    const bounceRate = uniqueSessions > 0
+        ? `${Math.round((Object.values(sessionViewMap).filter(n => n === 1).length / uniqueSessions) * 100)}%`
+        : "—";
 
-    const subPending  = submissions.filter(s => s.status === "pending").length;
-    const subApproved = submissions.filter(s => s.status === "approved").length;
-    const subRejected = submissions.filter(s => s.status === "rejected").length;
+    const subPending    = submissions.filter(s => s.status === "pending").length;
+    const subApproved   = submissions.filter(s => s.status === "approved").length;
+    const subRejected   = submissions.filter(s => s.status === "rejected").length;
     const subAcceptRate = submissions.length > 0 ? `${Math.round((subApproved / submissions.length) * 100)}%` : "—";
+    const totalArticleViews = articles.reduce((s, a) => s + (a.view_count || 0), 0);
 
-    // ── Daily views for compare chart ────────────────────
-    const dayLabels = Array.from({ length: rangeDays }, (_, i) => {
-        const d = new Date(startMs + i * 86400000);
-        return d.toISOString().slice(0, 10);
-    });
-    const prevDayLabels = Array.from({ length: rangeDays }, (_, i) => {
-        const d = new Date(prevStart + i * 86400000);
-        return d.toISOString().slice(0, 10);
-    });
+    const dayLabels     = Array.from({ length: rangeDays }, (_, i) => new Date(startMs   + i * 86400000).toISOString().slice(0, 10));
+    const prevDayLabels = Array.from({ length: rangeDays }, (_, i) => new Date(prevStart + i * 86400000).toISOString().slice(0, 10));
+    const dailyViews     = dayLabels.map(day => windowViews.filter(v => v.viewed_at?.startsWith(day)).length);
+    const prevDailyViews = prevDayLabels.map(day => prevViews.filter(v => v.viewed_at?.startsWith(day)).length);
 
-    const dailyViews = dayLabels.map(day => windowViews.filter(v => v.viewed_at.startsWith(day)).length);
-    const prevDailyViews = prevDayLabels.map(day => prevViews.filter(v => v.viewed_at.startsWith(day)).length);
+    const sparkLabels = dayLabels.map((d, i) =>
+        (i === 0 || i === Math.floor(rangeDays / 2) || i === rangeDays - 1)
+            ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })
+            : "");
 
-    const sparkLabels = dayLabels
-        .map((d, i) => (i === 0 || i === Math.floor(rangeDays / 2) || i === rangeDays - 1)
-            ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "");
-
-    // ── Categories ────────────────────────────────────────
     const allCategories = ["All", ...new Set(articles.map(a => a.category).filter(Boolean))];
 
     const catViews = articles.reduce((acc, a) => {
@@ -551,42 +500,33 @@ export default function AnalyticsDashboard() {
         acc[cat] = (acc[cat] || 0) + (a.view_count || 0);
         return acc;
     }, {});
-    const catData = Object.entries(catViews).sort((a, b) => b[1] - a[1]).slice(0, 7)
-        .map(([key, value]) => ({ key, value }));
+    const catData = Object.entries(catViews).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([key, value]) => ({ key, value }));
 
-    // Previous period category data for comparison
     const prevCatViews = {};
     prevViews.forEach(v => {
         const art = articles.find(a => a.id === v.article_id);
-        if (art) {
-            const cat = art.category || "Uncategorised";
-            prevCatViews[cat] = (prevCatViews[cat] || 0) + 1;
-        }
+        if (art) { const cat = art.category || "Uncategorised"; prevCatViews[cat] = (prevCatViews[cat] || 0) + 1; }
     });
     const catCompareData = catData.map(r => ({ key: r.key, value: prevCatViews[r.key] || 0 }));
 
-    // ── Devices & referrers ───────────────────────────────
     const deviceMap = { mobile: 0, tablet: 0, desktop: 0 };
-    windowViews.forEach(v => { if (v.device_type) deviceMap[v.device_type] = (deviceMap[v.device_type] || 0) + 1; });
+    windowViews.forEach(v => { if (v.device_type in deviceMap) deviceMap[v.device_type]++; });
 
     const refMap = {};
-    windowViews.forEach(v => {
-        const r = v.referrer || "direct";
-        refMap[r] = (refMap[r] || 0) + 1;
-    });
+    windowViews.forEach(v => { const r = v.referrer || "direct"; refMap[r] = (refMap[r] || 0) + 1; });
     const refData = Object.entries(refMap).sort((a, b) => b[1] - a[1]).slice(0, 6)
         .map(([key, value]) => ({ key, value, sub: totalViews > 0 ? `${Math.round((value / totalViews) * 100)}%` : "0%" }));
 
-    // ── Publishing velocity ───────────────────────────────
     const months6 = Array.from({ length: 6 }, (_, i) => {
         const d = new Date(new Date().getFullYear(), new Date().getMonth() - (5 - i), 1);
-        const label = d.toLocaleString("default", { month: "short" });
-        const count = articles.filter(a => {
-            if (!a.published_at) return false;
-            const p = new Date(a.published_at);
-            return p.getMonth() === d.getMonth() && p.getFullYear() === d.getFullYear();
-        }).length;
-        return { key: label, value: count };
+        return {
+            key: d.toLocaleString("default", { month: "short" }),
+            value: articles.filter(a => {
+                if (!a.published_at) return false;
+                const p = new Date(a.published_at);
+                return p.getMonth() === d.getMonth() && p.getFullYear() === d.getFullYear();
+            }).length,
+        };
     });
 
     const toggleSort = (col) => {
@@ -594,28 +534,25 @@ export default function AnalyticsDashboard() {
         else { setArticleSort(col); setArticleSortDir("desc"); }
     };
 
-    const SortIcon = ({ col }) => {
-        if (articleSort !== col) return <span className="sort-icon sort-icon--inactive">↕</span>;
-        return <span className="sort-icon">{articleSortDir === "desc" ? "↓" : "↑"}</span>;
-    };
-
-    const totalArticleViews = articles.reduce((s, a) => s + (a.view_count || 0), 0);
+    const SortIcon = ({ col }) =>
+        articleSort !== col
+            ? <span className="sort-icon sort-icon--inactive">↕</span>
+            : <span className="sort-icon">{articleSortDir === "desc" ? "↓" : "↑"}</span>;
 
     return (
         <div className="ad-page">
 
-            {/* ── Header ── */}
             <div className="ad-header">
                 <div className="ad-header-left">
                     <span className="ad-eyebrow">Admin · Analytics</span>
                     <h1 className="ad-title">Performance Overview</h1>
                 </div>
                 <div className="ad-header-right">
-                    <DateRangePicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
+                    <DateRangePicker startDate={startDate} endDate={endDate} onChange={(s, e) => { setStartDate(s); setEndDate(e); }} />
                     <button className="ad-compare-toggle" onClick={() => setShowCompare(c => !c)}>
                         {showCompare ? "Hide" : "Show"} comparison
                     </button>
-                    <button className="ad-export-btn" onClick={handleExport} disabled={exporting}>
+                    <button className="ad-export-btn" onClick={() => { setExporting(true); exportToExcel(raw); setTimeout(() => setExporting(false), 800); }} disabled={exporting}>
                         {exporting ? "Preparing…" : "↓ Export"}
                     </button>
                 </div>
@@ -625,29 +562,27 @@ export default function AnalyticsDashboard() {
                 <div className="ad-compare-banner">
                     <span className="compare-label">Comparing to previous period</span>
                     <span className="compare-range">
-            {new Date(prevStart).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} –{" "}
-                        {new Date(startMs - 86400000).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-          </span>
+                        {new Date(prevStart).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })} –{" "}
+                        {new Date(startMs - 86400000).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}
+                    </span>
                     <span className="compare-legend">
-            <span className="legend-dot legend-dot--current" /> Current
-            <span className="legend-dot legend-dot--prev" /> Previous
-          </span>
+                        <span className="legend-dot legend-dot--current" /> Current
+                        <span className="legend-dot legend-dot--prev" /> Previous
+                    </span>
                 </div>
             )}
 
-            {/* ── KPI Row ── */}
             <div className="ad-kpi-row">
-                <KPI value={totalViews.toLocaleString()}        label="Page Views"      sub={`${rangeDays}d window`}        delta={viewDelta}    accent />
-                <KPI value={uniqueSessions.toLocaleString()}    label="Unique Visitors" sub="anonymous sessions"           delta={sessionDelta} />
-                <KPI value={avgDepth}                           label="Pages / Visit"   sub="engagement depth" />
-                <KPI value={bounceRate}                         label="Bounce Rate"     sub="single-page sessions" />
-                <KPI value={totalArticleViews.toLocaleString()} label="All-time Views" sub="across all articles" />
-                <KPI value={articles.length}                    label="Published"       sub="articles total" />
-                <KPI value={subPending}                         label="Pending"         sub="submissions" />
-                <KPI value={subAcceptRate}                      label="Accept Rate"     sub="submissions approved" />
+                <KPI value={totalViews.toLocaleString()}         label="Page Views"      sub={`${rangeDays}d window`}       delta={viewDelta}    accent />
+                <KPI value={uniqueSessions.toLocaleString()}     label="Unique Visitors" sub="anonymous sessions"          delta={sessionDelta} />
+                <KPI value={avgDepth}                            label="Pages / Visit"   sub="engagement depth" />
+                <KPI value={bounceRate}                          label="Bounce Rate"     sub="single-page sessions" />
+                <KPI value={totalArticleViews.toLocaleString()}  label="All-time Views"  sub="across all articles" />
+                <KPI value={articles.length}                     label="Published"       sub="articles total" />
+                <KPI value={subPending}                          label="Pending"         sub="submissions" />
+                <KPI value={subAcceptRate}                       label="Accept Rate"     sub="submissions approved" />
             </div>
 
-            {/* ── Tabbed main sections ── */}
             <div className="ad-tabs-wrap">
                 <Tabs
                     tabs={[
@@ -661,46 +596,30 @@ export default function AnalyticsDashboard() {
                 />
             </div>
 
-            {/* ── Traffic tab ── */}
             {activeTab === "traffic" && (
                 <div className="tab-content">
-                    {/* Traffic chart */}
                     <div className="ad-card ad-card--wide">
                         <div className="ad-card-header">
                             <span className="ad-card-title">Daily Traffic</span>
-                            <span className="ad-card-sub">
-                {totalViews.toLocaleString()} views · {uniqueSessions.toLocaleString()} visitors
-              </span>
+                            <span className="ad-card-sub">{totalViews.toLocaleString()} views · {uniqueSessions.toLocaleString()} visitors</span>
                         </div>
-                        <CompareChart
-                            current={dailyViews}
-                            previous={showCompare ? prevDailyViews : null}
-                            range={rangeDays}
-                            height={96}
-                        />
+                        <CompareChart current={dailyViews} previous={showCompare ? prevDailyViews : null} height={96} />
                         <div className="ad-spark-labels">
                             {sparkLabels.map((l, i) => <span key={i}>{l}</span>)}
                         </div>
                     </div>
-
                     <div className="ad-grid">
                         <div className="ad-col">
-                            {/* Devices */}
                             <div className="ad-card">
-                                <div className="ad-card-header">
-                                    <span className="ad-card-title">Devices</span>
-                                </div>
-                                {totalViews === 0
-                                    ? <p className="ad-empty">No data yet.</p>
-                                    : <Donut segments={[
-                                        { value: deviceMap.desktop, color: "var(--accent)",  label: "Desktop" },
-                                        { value: deviceMap.mobile,  color: "#a78bfa",         label: "Mobile"  },
-                                        { value: deviceMap.tablet,  color: "#38bdf8",         label: "Tablet"  },
+                                <div className="ad-card-header"><span className="ad-card-title">Devices</span></div>
+                                {totalViews === 0 ? <p className="ad-empty">No data yet.</p> : (
+                                    <Donut segments={[
+                                        { value: deviceMap.desktop, color: "var(--accent)", label: "Desktop" },
+                                        { value: deviceMap.mobile,  color: "#a78bfa",       label: "Mobile"  },
+                                        { value: deviceMap.tablet,  color: "#38bdf8",       label: "Tablet"  },
                                     ]} />
-                                }
+                                )}
                             </div>
-
-                            {/* Publishing velocity */}
                             <div className="ad-card">
                                 <div className="ad-card-header">
                                     <span className="ad-card-title">Publishing Velocity</span>
@@ -709,57 +628,39 @@ export default function AnalyticsDashboard() {
                                 <ColBar rows={months6} />
                             </div>
                         </div>
-
                         <div className="ad-col">
-                            {/* Traffic sources */}
                             <div className="ad-card">
-                                <div className="ad-card-header">
-                                    <span className="ad-card-title">Traffic Sources</span>
-                                </div>
+                                <div className="ad-card-header"><span className="ad-card-title">Traffic Sources</span></div>
                                 <BarChart rows={refData} color="#a78bfa" />
                             </div>
-
-                            {/* Category performance with comparison */}
                             <div className="ad-card">
                                 <div className="ad-card-header">
                                     <span className="ad-card-title">Views by Category</span>
                                     {showCompare && <span className="ad-card-sub">vs. previous period</span>}
                                 </div>
-                                <BarChart
-                                    rows={catData}
-                                    color="var(--accent)"
+                                <BarChart rows={catData} color="var(--accent)"
                                     compareRows={showCompare ? catCompareData : null}
-                                    compareColor="rgba(255,255,255,0.12)"
-                                />
+                                    compareColor="rgba(255,255,255,0.12)" />
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ── Content tab ── */}
             {activeTab === "content" && (
                 <div className="tab-content">
-                    {/* Search + filter toolbar */}
                     <div className="article-toolbar">
                         <div className="article-search-wrap">
                             <span className="search-icon">⌕</span>
-                            <input
-                                className="article-search"
-                                placeholder="Search articles, authors, categories…"
-                                value={articleSearch}
-                                onChange={e => setArticleSearch(e.target.value)}
-                            />
-                            {articleSearch && (
-                                <button className="search-clear" onClick={() => setArticleSearch("")}>✕</button>
-                            )}
+                            <input className="article-search" placeholder="Search articles, authors, categories…"
+                                value={articleSearch} onChange={e => setArticleSearch(e.target.value)} />
+                            {articleSearch && <button className="search-clear" onClick={() => setArticleSearch("")}>✕</button>}
                         </div>
                         <select className="article-cat-select" value={articleCat} onChange={e => setArticleCat(e.target.value)}>
                             {allCategories.map(c => <option key={c}>{c}</option>)}
                         </select>
                         <span className="article-count">{filteredArticles.length} articles</span>
                     </div>
-
                     <div className="ad-card ad-card--wide">
                         <div className="ad-full-table">
                             <div className="ad-full-header">
@@ -770,34 +671,30 @@ export default function AnalyticsDashboard() {
                                 <span className="sortable" onClick={() => toggleSort("views")}>Views <SortIcon col="views" /></span>
                                 <span>Est. Readers</span>
                             </div>
-                            {filteredArticles.length === 0 ? (
-                                <div className="ad-empty ad-empty--center" style={{ padding: "2rem" }}>
-                                    No articles match your filters.
-                                </div>
-                            ) : (
-                                filteredArticles.map(a => (
+                            {filteredArticles.length === 0
+                                ? <div className="ad-empty ad-empty--center" style={{ padding: "2rem" }}>No articles match your filters.</div>
+                                : filteredArticles.map(a => (
                                     <div key={a.id} className="ad-full-row">
-                    <span className="ad-full-title">
-                      <a href={`/article/${a.id}`} target="_blank" rel="noreferrer">{a.title}</a>
-                    </span>
+                                        <span className="ad-full-title">
+                                            <a href={`/article/${a.id}`} target="_blank" rel="noreferrer">{a.title}</a>
+                                        </span>
                                         <span className="ad-full-author">{a.author || "—"}</span>
                                         <span className="ad-full-cat">
-                      {a.category ? <span className="ad-cat">{a.category}</span> : "—"}
-                    </span>
+                                            {a.category ? <span className="ad-cat">{a.category}</span> : "—"}
+                                        </span>
                                         <span className="ad-full-date">
-                      {a.published_at ? formatDate(a.published_at) : <em className="ad-draft">Draft</em>}
-                    </span>
+                                            {a.published_at ? formatDate(a.published_at) : <em className="ad-draft">Draft</em>}
+                                        </span>
                                         <span className="ad-full-views">{(a.view_count || 0).toLocaleString()}</span>
                                         <span className="ad-full-readers">{Math.round((a.view_count || 0) * 0.72).toLocaleString()}</span>
                                     </div>
                                 ))
-                            )}
+                            }
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ── Authors tab ── */}
             {activeTab === "authors" && (
                 <div className="tab-content">
                     <div className="ad-card ad-card--wide">
@@ -810,7 +707,6 @@ export default function AnalyticsDashboard() {
                 </div>
             )}
 
-            {/* ── Submissions tab ── */}
             {activeTab === "submissions" && (
                 <div className="tab-content">
                     <div className="ad-grid">
@@ -839,7 +735,6 @@ export default function AnalyticsDashboard() {
                                 </div>
                             </div>
                         </div>
-
                         <div className="ad-col">
                             {eventSubs.length > 0 && (
                                 <div className="ad-card">
@@ -856,7 +751,7 @@ export default function AnalyticsDashboard() {
                                                     <div className="ad-funnel-track">
                                                         <div className="ad-funnel-fill" style={{
                                                             width: `${Math.round((n / Math.max(eventSubs.length, 1)) * 100)}%`,
-                                                            background: s === "approved" ? "#4ade80" : s === "rejected" ? "#f87171" : "var(--accent)"
+                                                            background: s === "approved" ? "#4ade80" : s === "rejected" ? "#f87171" : "var(--accent)",
                                                         }} />
                                                     </div>
                                                     <span className="ad-funnel-val">{n}</span>

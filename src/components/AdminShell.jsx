@@ -4,7 +4,7 @@ import SubmissionsPage from "./SubmissionsPage";
 import AdminEvents from "./AdminEvents";
 import ArticlesManager from "./ArticlesManager";
 import "./AdminShell.css";
-import SimpleAnalytics from "./SimpleAnalytics";
+import AnalyticsDashboard from "./AnalyticsDashboard";
 
 const PASSCODE = process.env.REACT_APP_PASSCODE;
 
@@ -129,7 +129,7 @@ export default function AdminShell({ initialView }) {
           {view === "publish"     && <AdminPage embedded />}
           {view === "submissions" && <SubmissionsPage embedded />}
           {view === "events"      && <AdminEvents />}
-            {view === "analytics" && <SimpleAnalytics />}
+            {view === "analytics" && <AnalyticsDashboard />}
         </div>
       </div>
 
