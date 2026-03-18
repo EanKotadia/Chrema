@@ -1,10 +1,10 @@
 import { useState } from "react";
 import AdminPage from "./AdminPage";
 import SubmissionsPage from "./SubmissionsPage";
-import AnalyticsDashboard from "./AnalyticsDashboard";
 import AdminEvents from "./AdminEvents";
 import ArticlesManager from "./ArticlesManager";
 import "./AdminShell.css";
+import SimpleAnalytics from "./SimpleAnalytics";
 
 const PASSCODE = process.env.REACT_APP_PASSCODE;
 
@@ -125,11 +125,11 @@ export default function AdminShell({ initialView }) {
 
         {/* Page content */}
         <div className="shell-content">
-          {view === "analytics"   && <AnalyticsDashboard />}
           {view === "articles"    && <ArticlesManager />}
           {view === "publish"     && <AdminPage embedded />}
           {view === "submissions" && <SubmissionsPage embedded />}
           {view === "events"      && <AdminEvents />}
+            {view === "analytics" && <SimpleAnalytics />}
         </div>
       </div>
 
