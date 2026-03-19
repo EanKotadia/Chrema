@@ -4,7 +4,7 @@ export default function LatestTicker({ articles }) {
   if (!articles.length) return null;
 
   // Duplicate for seamless loop
-  const items = [...articles, ...articles];
+  const items = [...articles, ...articles, ...articles];
 
   return (
     <div className="ticker-wrap">

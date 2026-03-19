@@ -6,6 +6,7 @@ import ArticlesManager from "./ArticlesManager";
 import "./AdminShell.css";
 import SimpleAnalytics from "./SimpleAnalytics";
 
+
 const PASSCODE = process.env.REACT_APP_PASSCODE;
 
 const TABS = [

@@ -1,5 +1,6 @@
+import { trackPageView, trackScrollDepth, trackTimeOnPage } from "../utils/analytics";
 import { useEffect, useState } from "react";
-import { SUPABASE_URL, headers, trackPageView } from "../utils/supabase";
+import { SUPABASE_URL, headers} from "../utils/supabase";
 import { formatDate } from "../utils/dateUtils";
 import Footer from "./Footer";
 import "./ArticlePage.css";
@@ -9,7 +10,12 @@ export default function ArticlePage({ id }) {
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-
+   useEffect(() => {
+       trackPageView({ article_id: article.id, article_slug: article.slug });
+       const cleanupScroll = trackScrollDepth(article.id);
+       const cleanupTime   = trackTimeOnPage(article.id);
+       return () => { cleanupScroll(); cleanupTime(); };
+    },[article.id, article.slug]);
   useEffect(() => {
     const fetchArticle = async () => {
       try {

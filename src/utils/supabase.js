@@ -201,28 +201,6 @@ export async function permanentlyDelete(id) {
   }
 }
 
-// ── Analytics ─────────────────────────────────────────────
-
-export async function getAnalytics() {
-  const [articlesRes, submissionsRes, trashRes] = await Promise.all([
-    fetch(`${SUPABASE_URL}/rest/v1/articles?select=id,title,category,author,published_at&order=published_at.desc`, { headers }),
-    fetch(`${SUPABASE_URL}/rest/v1/submissions?select=id,status,submitted_at,category`, { headers }),
-    fetch(`${SUPABASE_URL}/rest/v1/trash?select=id,trashed_at`, { headers }),
-  ]);
-
-  const [articles, submissions, trash] = await Promise.all([
-    articlesRes.ok  ? articlesRes.json()    : Promise.resolve([]),
-    submissionsRes.ok ? submissionsRes.json() : Promise.resolve([]),
-    trashRes.ok     ? trashRes.json()       : Promise.resolve([]),
-  ]);
-
-  return {
-    articles:    Array.isArray(articles)    ? articles    : [],
-    submissions: Array.isArray(submissions) ? submissions : [],
-    trash:       Array.isArray(trash)       ? trash       : [],
-  };
-}
-
 // ── Events ────────────────────────────────────────────────
 
 export async function getEvents(status) {
@@ -318,58 +296,4 @@ export async function deleteEventSubmission(id) {
     method: "DELETE", headers,
   });
   if (!res.ok) throw new Error("Failed to delete submission");
-}
-
-// ── Analytics / Page Views ────────────────────────────────
-
-export async function trackPageView({ article_id, article_slug }) {
-  try {
-    let session_id = sessionStorage.getItem("chrema_sid");
-    if (!session_id) {
-      session_id = Math.random().toString(36).slice(2) + Date.now().toString(36);
-      sessionStorage.setItem("chrema_sid", session_id);
-    }
-
-    const throttleKey = `pv_${article_id}`;
-    if (sessionStorage.getItem(throttleKey)) return;
-    sessionStorage.setItem(throttleKey, "1");
-
-    const w = window.innerWidth;
-    const device_type = w < 768 ? "mobile" : w < 1024 ? "tablet" : "desktop";
-
-    await fetch(`${SUPABASE_URL}/rest/v1/page_views`, {
-      method: "POST",
-      headers: { ...headers, Prefer: "return=minimal" },
-      body: JSON.stringify({
-        article_id,
-        article_slug,
-        session_id,
-        referrer: document.referrer ? new URL(document.referrer).hostname : "direct",
-        device_type,
-      }),
-    });
-  } catch (_) {
-    // Never block the article page if tracking fails
-  }
-}
-
-export async function getPageViewStats() {
-  const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/page_views?select=article_id,session_id,device_type,referrer,viewed_at&viewed_at=gte.${since}&order=viewed_at.desc`,
-    { headers }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return Array.isArray(data) ? data : [];
-}
-
-export async function getArticlesWithViews() {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/articles?select=id,title,author,category,published_at,view_count&order=published_at.desc`,
-    { headers }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return Array.isArray(data) ? data : [];
 }
