@@ -421,7 +421,7 @@ export default function AdminEvents() {
     const counts = {
       pending:      submissions.filter(s => s.status === "pending").length,
       approved:     submissions.filter(s => s.status === "approved").length,
-      "needs edit": submissions.filter(s => s.status === "needs_edit").length,
+      needs_edit: submissions.filter(s => s.status === "needs_edit").length,
       rejected:     submissions.filter(s => s.status === "rejected").length,
     };
     return (

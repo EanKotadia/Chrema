@@ -1,14 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   getSubmissions, updateSubmission, createArticle,
   trashSubmission, getTrash, restoreFromTrash, permanentlyDelete
 } from "../utils/supabase";
+import { Toolbar } from "./ArticleEditor";
 import { formatDate } from "../utils/dateUtils";
 import { sendApprovalEmail, sendRejectionEmail } from "../utils/email";
 import "./SubmissionsPage.css";
 
-const STATUS_COLORS = { pending: "status--pending", approved: "status--approved" };
-const STATUS_LABELS = { pending: "Pending", approved: "Approved" };
+const STATUS_COLORS = {
+  pending:    "status--pending",
+  approved:   "status--approved",
+  needs_edit: "status--needs-edit",
+};
+const STATUS_LABELS = {
+  pending:    "Pending",
+  approved:   "Approved",
+  needs_edit: "Needs Edit",
+};
 
 const CATEGORIES = [
   "Technology","Science","Design","Research","Culture","Opinion",
@@ -18,14 +27,26 @@ const CATEGORIES = [
 
 // ── Confirm modal ─────────────────────────────────────────
 function ConfirmModal({ item, action, onConfirm, onCancel }) {
-  const isApprove = action === "approve";
-  const isRestore = action === "restore";
-  const isPerm    = action === "permanent";
+  const isApprove   = action === "approve";
+  const isRestore   = action === "restore";
+  const isPerm      = action === "permanent";
+  const isNeedsEdit = action === "needs_edit";
 
-  const icon     = isApprove ? "✓" : isRestore ? "↩" : "✕";
-  const title    = isApprove ? "Publish this article?" : isRestore ? "Restore this submission?" : isPerm ? "Permanently delete?" : "Move to Trash?";
-  const btnClass = isApprove ? "modal-btn--approve" : isPerm ? "modal-btn--reject" : "modal-btn--neutral";
-  const btnLabel = isApprove ? "Yes, Publish" : isRestore ? "Yes, Restore" : isPerm ? "Delete Forever" : "Move to Trash";
+  const icon     = isApprove ? "✓" : isRestore ? "↩" : isNeedsEdit ? "✎" : "✕";
+  const title    = isApprove   ? "Publish this article?"
+                 : isRestore   ? "Restore this submission?"
+                 : isPerm      ? "Permanently delete?"
+                 : isNeedsEdit ? "Request edits?"
+                 :               "Move to Trash?";
+  const btnClass = isApprove   ? "modal-btn--approve"
+                 : isPerm      ? "modal-btn--reject"
+                 : isNeedsEdit ? "modal-btn--edit"
+                 :               "modal-btn--neutral";
+  const btnLabel = isApprove   ? "Yes, Publish"
+                 : isRestore   ? "Yes, Restore"
+                 : isPerm      ? "Delete Forever"
+                 : isNeedsEdit ? "Request Edits"
+                 :               "Move to Trash";
 
   const body = isApprove
     ? <><strong>"{item.title}"</strong> by {item.name} will go live on Chréma immediately.</>
@@ -33,12 +54,14 @@ function ConfirmModal({ item, action, onConfirm, onCancel }) {
     ? <><strong>"{item.title}"</strong> will be moved back to Pending submissions.</>
     : isPerm
     ? <><strong>"{item.title}"</strong> will be permanently deleted. This cannot be undone.</>
+    : isNeedsEdit
+    ? <><strong>"{item.title}"</strong> will be marked as needing edits. The author will be notified.</>
     : <><strong>"{item.title}"</strong> by {item.name} will be moved to Trash. You can restore it later.</>;
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className={`modal-icon ${isApprove ? "modal-icon--approve" : isPerm ? "modal-icon--reject" : "modal-icon--neutral"}`}>{icon}</div>
+        <div className={`modal-icon ${isApprove ? "modal-icon--approve" : isPerm ? "modal-icon--reject" : isNeedsEdit ? "modal-icon--edit" : "modal-icon--neutral"}`}>{icon}</div>
         <h3 className="modal-title">{title}</h3>
         <p className="modal-body">{body}</p>
         <div className="modal-actions">
@@ -51,8 +74,8 @@ function ConfirmModal({ item, action, onConfirm, onCancel }) {
 }
 
 // ── Drawer ────────────────────────────────────────────────
-function Drawer({ item, onClose, onApprove, onReject, onRestore, onPermanentDelete, onSave, isTrash, loading }) {
-  const [mode, setMode]       = useState("read"); // "read" | "edit"
+function Drawer({ item, onClose, onApprove, onReject, onNeedsEdit, onRestore, onPermanentDelete, onSave, isTrash, loading }) {
+  const [mode, setMode]         = useState("read");
   const [editForm, setEditForm] = useState({
     title:    item.title    || "",
     name:     item.name     || "",
@@ -62,8 +85,10 @@ function Drawer({ item, onClose, onApprove, onReject, onRestore, onPermanentDele
     bio:      item.bio      || "",
   });
   const [saving, setSaving] = useState(false);
+  const bodyRef = useRef(null);
 
-  const setF = k => e => setEditForm(p => ({ ...p, [k]: e.target.value }));
+  const setF    = k => e => setEditForm(p => ({ ...p, [k]: e.target.value }));
+  const setBody = useCallback(v => setEditForm(p => ({ ...p, body: v })), []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -72,11 +97,11 @@ function Drawer({ item, onClose, onApprove, onReject, onRestore, onPermanentDele
     setMode("read");
   };
 
-  const dateLabel  = isTrash ? "Trashed" : "Submitted";
-  const dateVal    = isTrash ? item.trashed_at : item.submitted_at;
+  const dateLabel = isTrash ? "Trashed" : "Submitted";
+  const dateVal   = isTrash ? item.trashed_at : item.submitted_at;
+  const display   = mode === "read" ? { ...item, ...editForm } : item;
 
-  // Use edited values for display in read mode after save
-  const display = mode === "read" ? { ...item, ...editForm } : item;
+  const wordCount = editForm.body.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
@@ -87,7 +112,9 @@ function Drawer({ item, onClose, onApprove, onReject, onRestore, onPermanentDele
           <div className="drawer-meta">
             {isTrash
               ? <span className="sub-status status--rejected">Trashed</span>
-              : <span className={`sub-status ${STATUS_COLORS[item.status] || ""}`}>{STATUS_LABELS[item.status] || item.status}</span>
+              : <span className={`sub-status ${STATUS_COLORS[item.status] || ""}`}>
+                  {STATUS_LABELS[item.status] || item.status}
+                </span>
             }
             {editForm.category && <span className="drawer-category">{editForm.category}</span>}
           </div>
@@ -139,13 +166,19 @@ function Drawer({ item, onClose, onApprove, onReject, onRestore, onPermanentDele
             <div className="drawer-footer">
               {isTrash ? (
                 <>
-                  <button className="action-btn action-btn--reject" onClick={() => onPermanentDelete(item)} disabled={loading}>✕ Delete Forever</button>
-                  <button className="action-btn action-btn--restore" onClick={() => onRestore(item)} disabled={loading}>↩ Restore</button>
+                  <button className="action-btn action-btn--reject"  onClick={() => onPermanentDelete(item)} disabled={loading}>✕ Delete Forever</button>
+                  <button className="action-btn action-btn--restore" onClick={() => onRestore(item)}         disabled={loading}>↩ Restore</button>
                 </>
-              ) : item.status === "pending" ? (
+              ) : (item.status === "pending" || item.status === "needs_edit") ? (
                 <>
-                  <button className="action-btn action-btn--reject" onClick={() => onReject(item)} disabled={loading}>🗑 Move to Trash</button>
-                  <button className="action-btn action-btn--approve" onClick={() => onApprove({ ...item, ...editForm })} disabled={loading}>✓ Publish Article</button>
+                  <button className="action-btn action-btn--reject" onClick={() => onReject(item)} disabled={loading}>🗑 Trash</button>
+                  {item.status === "pending" && (
+                    <button className="action-btn action-btn--edit" onClick={() => onNeedsEdit(item)} disabled={loading}>✎ Needs Edit</button>
+                  )}
+                  {item.status === "needs_edit" && (
+                    <button className="action-btn action-btn--neutral" onClick={() => onNeedsEdit(item)} disabled={loading}>↩ Mark Pending</button>
+                  )}
+                  <button className="action-btn action-btn--approve" onClick={() => onApprove({ ...item, ...editForm })} disabled={loading}>✓ Publish</button>
                 </>
               ) : null}
             </div>
@@ -196,12 +229,21 @@ function Drawer({ item, onClose, onApprove, onReject, onRestore, onPermanentDele
                 placeholder="Short summary shown in article cards…" />
             </div>
 
+            {/* ── Body with rich toolbar ── */}
             <div className="de-field">
               <label className="de-label">
                 Article Body
-                <span className="de-hint">{editForm.body.trim().split(/\s+/).filter(Boolean).length} words</span>
+                <span className="de-hint">{wordCount.toLocaleString()} words</span>
               </label>
-              <textarea className="de-input de-textarea de-textarea--tall" rows={16} value={editForm.body} onChange={setF("body")} />
+              <Toolbar editorRef={bodyRef} value={editForm.body} onChange={setBody} />
+              <textarea
+                ref={bodyRef}
+                className="de-input de-textarea de-textarea--tall"
+                rows={16}
+                value={editForm.body}
+                onChange={e => setBody(e.target.value)}
+                spellCheck
+              />
             </div>
 
             <div className="de-field">
@@ -212,13 +254,12 @@ function Drawer({ item, onClose, onApprove, onReject, onRestore, onPermanentDele
 
             <div className="drawer-footer drawer-footer--edit">
               <button className="action-btn action-btn--cancel" onClick={() => setMode("read")}>Cancel</button>
-              <button className="action-btn action-btn--save" onClick={handleSave} disabled={saving}>
+              <button className="action-btn action-btn--save"   onClick={handleSave} disabled={saving}>
                 {saving ? "Saving…" : "Save Changes"}
               </button>
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
@@ -226,35 +267,36 @@ function Drawer({ item, onClose, onApprove, onReject, onRestore, onPermanentDele
 
 // ── Main page ─────────────────────────────────────────────
 export default function SubmissionsPage({ embedded }) {
-  const [submissions, setSubmissions]   = useState([]);
-  const [trashItems, setTrashItems]     = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [filter, setFilter]             = useState("pending");
-  const [selected, setSelected]         = useState(null);
-  const [confirm, setConfirm]           = useState(null);
+  const [submissions,   setSubmissions]   = useState([]);
+  const [trashItems,    setTrashItems]    = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [filter,        setFilter]        = useState("pending");
+  const [selected,      setSelected]      = useState(null);
+  const [confirm,       setConfirm]       = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [toast, setToast]               = useState(null);
+  const [toast,         setToast]         = useState(null);
 
   const load = async () => {
     setLoading(true);
     try {
       const [subs, trash] = await Promise.all([getSubmissions(), getTrash()]);
-      setSubmissions(Array.isArray(subs) ? subs : []);
-      setTrashItems(Array.isArray(trash) ? trash : []);
+      setSubmissions(Array.isArray(subs)   ? subs  : []);
+      setTrashItems(Array.isArray(trash)   ? trash : []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { void load(); }, []);
 
-  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
-  // Save edits to submission
   const handleSaveEdit = async (id, fields) => {
     try {
       await updateSubmission(id, fields);
       setSubmissions(prev => prev.map(s => s.id === id ? { ...s, ...fields } : s));
-      // Update selected so drawer reflects new values
       setSelected(prev => prev?.id === id ? { ...prev, ...fields } : prev);
       showToast("Submission updated.", "success");
     } catch (err) { showToast(err.message, "error"); }
@@ -266,7 +308,6 @@ export default function SubmissionsPage({ embedded }) {
     setActionLoading(true);
     try {
       if (action === "approve") {
-        // Use latest submission data (may have been edited)
         const latest = submissions.find(s => s.id === item.id) || item;
         if (!latest.category) {
           showToast("Please set a category before publishing.", "error");
@@ -287,6 +328,19 @@ export default function SubmissionsPage({ embedded }) {
         const articleId = Array.isArray(created) ? created[0]?.id : created?.id;
         sendApprovalEmail({ name: latest.name, email: latest.email, title: latest.title, articleId: articleId || "" })
           .catch(e => console.warn("Approval email failed:", e));
+
+      } else if (action === "needs_edit") {
+        const current   = submissions.find(s => s.id === item.id) || item;
+        const newStatus = current.status === "needs_edit" ? "pending" : "needs_edit";
+        await updateSubmission(item.id, { status: newStatus });
+        setSubmissions(prev => prev.map(s => s.id === item.id ? { ...s, status: newStatus } : s));
+        setSelected(prev => prev?.id === item.id ? { ...prev, status: newStatus } : prev);
+        showToast(
+          newStatus === "needs_edit"
+            ? `"${item.title}" marked as needing edits.`
+            : `"${item.title}" moved back to Pending.`,
+          "success"
+        );
 
       } else if (action === "reject") {
         await trashSubmission(item);
@@ -309,17 +363,22 @@ export default function SubmissionsPage({ embedded }) {
         setTrashItems(prev => prev.filter(t => t.id !== item.id));
         showToast("Permanently deleted.", "error");
       }
+
       setSelected(null);
     } catch (err) { showToast(err.message, "error"); }
     finally { setActionLoading(false); }
   };
 
-  const isTrashView   = filter === "trash";
-  const displayItems  = isTrashView ? trashItems : submissions.filter(s => filter === "all" ? true : s.status === filter);
+  const isTrashView  = filter === "trash";
+  const displayItems = isTrashView
+    ? trashItems
+    : submissions.filter(s => filter === "all" ? true : s.status === filter);
+
   const counts = {
-    pending:  submissions.filter(s => s.status === "pending").length,
-    approved: submissions.filter(s => s.status === "approved").length,
-    trash:    trashItems.length,
+    pending:    submissions.filter(s => s.status === "pending").length,
+    needs_edit: submissions.filter(s => s.status === "needs_edit").length,
+    approved:   submissions.filter(s => s.status === "approved").length,
+    trash:      trashItems.length,
   };
 
   return (
@@ -341,6 +400,7 @@ export default function SubmissionsPage({ embedded }) {
           </div>
           <div className="subs-stats">
             <div className="stat"><span className="stat-num stat-num--pending">{counts.pending}</span><span className="stat-label">Pending</span></div>
+            <div className="stat"><span className="stat-num stat-num--edit">{counts.needs_edit}</span><span className="stat-label">Needs Edit</span></div>
             <div className="stat"><span className="stat-num stat-num--approved">{counts.approved}</span><span className="stat-label">Approved</span></div>
             <div className="stat"><span className="stat-num stat-num--rejected">{counts.trash}</span><span className="stat-label">Trash</span></div>
           </div>
@@ -348,13 +408,14 @@ export default function SubmissionsPage({ embedded }) {
 
         <div className="subs-tabs">
           {[
-            { key: "pending",  label: "Pending",  count: counts.pending },
-            { key: "approved", label: "Approved", count: counts.approved },
-            { key: "all",      label: "All",      count: null },
-            { key: "trash",    label: "🗑 Trash",  count: counts.trash },
+            { key: "pending",    label: "Pending",    count: counts.pending    },
+            { key: "needs_edit", label: "Needs Edit", count: counts.needs_edit },
+            { key: "approved",   label: "Approved",   count: counts.approved   },
+            { key: "all",        label: "All",        count: null              },
+            { key: "trash",      label: "🗑 Trash",   count: counts.trash      },
           ].map(({ key, label, count }) => (
             <button key={key}
-              className={`subs-tab ${filter === key ? "active" : ""} ${key === "trash" ? "subs-tab--trash" : ""}`}
+              className={`subs-tab ${filter === key ? "active" : ""} ${key === "trash" ? "subs-tab--trash" : ""} ${key === "needs_edit" ? "subs-tab--edit" : ""}`}
               onClick={() => setFilter(key)}>
               {label}
               {count !== null && <span className="tab-count">{count}</span>}
@@ -368,12 +429,14 @@ export default function SubmissionsPage({ embedded }) {
           <div className="subs-empty">
             {isTrashView
               ? <><div className="trash-empty-icon">🗑</div><p>Trash is empty.</p></>
-              : <p>No {filter === "all" ? "" : filter} submissions yet.</p>}
+              : <p>No {filter === "all" ? "" : filter.replace("_", " ")} submissions yet.</p>}
           </div>
         ) : (
           <div className="subs-list">
             {displayItems.map(item => (
-              <div key={item.id} className={`sub-row ${isTrashView ? "sub-row--trash" : ""}`} onClick={() => setSelected(item)}>
+              <div key={item.id}
+                className={`sub-row ${isTrashView ? "sub-row--trash" : ""} ${item.status === "needs_edit" ? "sub-row--needs-edit" : ""}`}
+                onClick={() => setSelected(item)}>
                 <div className="sub-row-left">
                   <div className="sub-avatar">{item.name?.[0]?.toUpperCase() || "?"}</div>
                   <div className="sub-info">
@@ -402,14 +465,22 @@ export default function SubmissionsPage({ embedded }) {
                   )}
                   {!isTrashView && item.status === "pending" && (
                     <div className="sub-actions">
-                      <button className="quick-btn quick-btn--reject" onClick={() => setConfirm({ item, action: "reject" })} title="Move to Trash">🗑</button>
-                      <button className="quick-btn quick-btn--approve" onClick={() => setConfirm({ item, action: "approve" })} title="Approve & Publish">✓</button>
+                      <button className="quick-btn quick-btn--reject"  onClick={() => setConfirm({ item, action: "reject"     })} title="Move to Trash">🗑</button>
+                      <button className="quick-btn quick-btn--edit"    onClick={() => setConfirm({ item, action: "needs_edit" })} title="Needs Edit">✎</button>
+                      <button className="quick-btn quick-btn--approve" onClick={() => setConfirm({ item, action: "approve"    })} title="Approve & Publish">✓</button>
+                    </div>
+                  )}
+                  {!isTrashView && item.status === "needs_edit" && (
+                    <div className="sub-actions">
+                      <button className="quick-btn quick-btn--reject"  onClick={() => setConfirm({ item, action: "reject"     })} title="Move to Trash">🗑</button>
+                      <button className="quick-btn quick-btn--neutral" onClick={() => setConfirm({ item, action: "needs_edit" })} title="Mark as Pending">↩</button>
+                      <button className="quick-btn quick-btn--approve" onClick={() => setConfirm({ item, action: "approve"    })} title="Approve & Publish">✓</button>
                     </div>
                   )}
                   {isTrashView && (
                     <div className="sub-actions">
-                      <button className="quick-btn quick-btn--reject" onClick={() => setConfirm({ item, action: "permanent" })} title="Delete Forever">✕</button>
-                      <button className="quick-btn quick-btn--approve" onClick={() => setConfirm({ item, action: "restore" })} title="Restore">↩</button>
+                      <button className="quick-btn quick-btn--reject"  onClick={() => setConfirm({ item, action: "permanent" })} title="Delete Forever">✕</button>
+                      <button className="quick-btn quick-btn--approve" onClick={() => setConfirm({ item, action: "restore"   })} title="Restore">↩</button>
                     </div>
                   )}
                 </div>
@@ -424,17 +495,29 @@ export default function SubmissionsPage({ embedded }) {
           item={selected}
           isTrash={isTrashView}
           onClose={() => setSelected(null)}
-          onApprove={i => setConfirm({ item: i, action: "approve" })}
-          onReject={i  => setConfirm({ item: i, action: "reject" })}
-          onRestore={i => setConfirm({ item: i, action: "restore" })}
-          onPermanentDelete={i => setConfirm({ item: i, action: "permanent" })}
+          onApprove={i         => setConfirm({ item: i, action: "approve"    })}
+          onReject={i          => setConfirm({ item: i, action: "reject"     })}
+          onNeedsEdit={i       => setConfirm({ item: i, action: "needs_edit" })}
+          onRestore={i         => setConfirm({ item: i, action: "restore"    })}
+          onPermanentDelete={i => setConfirm({ item: i, action: "permanent"  })}
           onSave={handleSaveEdit}
           loading={actionLoading}
         />
       )}
 
-      {confirm && <ConfirmModal item={confirm.item} action={confirm.action} onConfirm={handleConfirm} onCancel={() => setConfirm(null)} />}
-      {toast && <div className={`toast ${toast.type === "error" ? "toast--error" : "toast--success"}`}>{toast.msg}</div>}
+      {confirm && (
+        <ConfirmModal
+          item={confirm.item}
+          action={confirm.action}
+          onConfirm={handleConfirm}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+      {toast && (
+        <div className={`toast ${toast.type === "error" ? "toast--error" : "toast--success"}`}>
+          {toast.msg}
+        </div>
+      )}
     </div>
   );
 }

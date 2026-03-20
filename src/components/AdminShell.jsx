@@ -10,9 +10,10 @@ import SimpleAnalytics from "./SimpleAnalytics";
 const PASSCODE = process.env.REACT_APP_PASSCODE;
 
 const TABS = [
+  { key: "publish",     label: "Publish",      icon: "+" },
   { key: "analytics",   label: "Analytics",   icon: "▲" },
   { key: "articles",    label: "Articles",     icon: "◈" },
-  { key: "publish",     label: "Publish",      icon: "+" },
+
   { key: "submissions", label: "Submissions",  icon: "◎" },
   { key: "events",      label: "Events",       icon: "◆" },
 ];
@@ -126,11 +127,11 @@ export default function AdminShell({ initialView }) {
 
         {/* Page content */}
         <div className="shell-content">
-          {view === "articles"    && <ArticlesManager />}
-          {view === "publish"     && <AdminPage embedded />}
+            {view === "publish"     && <AdminPage embedded />}
+            {view === "articles"    && <ArticlesManager />}
           {view === "submissions" && <SubmissionsPage embedded />}
           {view === "events"      && <AdminEvents />}
-            {view === "analytics" && <SimpleAnalytics />}
+          {view === "analytics" && <SimpleAnalytics />}
         </div>
       </div>
 

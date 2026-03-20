@@ -56,7 +56,7 @@ function wrap(tag, sel, extras = "") {
 }
 
 // ── Rich text toolbar ─────────────────────────────────────
-function Toolbar({ editorRef, value, onChange }) {
+export function Toolbar({ editorRef, value, onChange }) {
   const exec = useCallback((id) => {
     const ta = editorRef.current;
     if (!ta) return;

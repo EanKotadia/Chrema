@@ -35,7 +35,9 @@ export default function Navbar({ categories, activeCategory, setActiveCategory }
             Events
           </a>
           <a href="/submit" className="navbar-link">Write for Us</a>
-          <a href="/about" className="navbar-link navbar-link--dim">About</a>
+          <a href="/about" className="navbar-link">About</a>
+          <a href="/admin" className="navbar-link">Admin</a>
+
 
         </div>
 

@@ -1,10 +1,29 @@
+import { useEffect, useRef } from "react";
 import { formatDate } from "../utils/dateUtils";
+import { trackImpression, trackCardClick } from "../utils/analytics";
 
 function ArticleCard({ article, large }) {
+  const ref = useRef(null);
+
+  // fire trackImpression once when card enters viewport
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        trackImpression(article.id);
+        observer.disconnect();
+      }
+    }, { threshold: 0.5 });
+
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [article.id]);
+
   return (
     <a
+      ref={ref}
       href={`/article/${article.id}`}
       className={`article-card ${large ? "article-card--large" : ""}`}
+      onClick={() => trackCardClick(article.id)}
     >
       <div className="card-image-wrap">
         {article.image_url ? (

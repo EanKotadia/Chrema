@@ -196,3 +196,34 @@
   .drawer-body, .drawer-edit-body { padding: 20px 16px; }
   .drawer-footer { padding: 16px; }
 }
+/* in SubmissionsPage.css */
+
+.status--needs-edit {
+    background: rgba(251,191,36,0.12);
+    color: #fbbf24;
+    border-color: rgba(251,191,36,0.25);
+}
+
+.stat-num--edit { color: #fbbf24; }
+
+.subs-tab--edit.active { color: #fbbf24; border-bottom-color: #fbbf24; }
+
+.sub-row--needs-edit {
+    border-left: 2px solid rgba(251,191,36,0.4);
+}
+
+.quick-btn--edit {
+    color: #fbbf24;
+    border-color: rgba(251,191,36,0.3);
+}
+.quick-btn--edit:hover { background: rgba(251,191,36,0.1); }
+
+.modal-icon--edit { background: rgba(251,191,36,0.1); color: #fbbf24; }
+.modal-btn--edit  { background: #fbbf24; color: #000; }
+
+.action-btn--edit {
+    background: rgba(251,191,36,0.1);
+    border: 1px solid rgba(251,191,36,0.3);
+    color: #fbbf24;
+}
+.action-btn--edit:hover { background: rgba(251,191,36,0.18); }

@@ -4,7 +4,6 @@ import ArticleEditor from "./ArticleEditor";
 import { formatDate } from "../utils/dateUtils";
 import "./ArticlesManager.css";
 
-// ── Edit drawer (uses ArticleEditor) ─────────────────────
 function EditDrawer({ article, onClose, onSave, onDelete }) {
   const handleSave = async (formData) => {
     await onSave(article.id, {
